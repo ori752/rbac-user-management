@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { User } from '../types/rbac';
 
 function now(): string {
@@ -13,7 +13,7 @@ function seedUser(
   role: User['role']
 ): User {
   return {
-    id: uuidv4(),
+    id: randomUUID(),
     name,
     email,
     passwordHash: bcrypt.hashSync(password, 10),
@@ -54,7 +54,7 @@ export const store = {
   create(data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>): User {
     const user: User = {
       ...data,
-      id: uuidv4(),
+      id: randomUUID(),
       createdAt: now(),
       updatedAt: now(),
     };
