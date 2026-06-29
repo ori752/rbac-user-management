@@ -1,9 +1,10 @@
 import express from 'express';
 import path from 'path';
 
-import authRoutes   from './routes/auth';
-import userRoutes   from './routes/users';
-import importRoutes from './routes/import';
+import authRoutes     from './routes/auth';
+import userRoutes     from './routes/users';
+import importRoutes   from './routes/import';
+import propertyRoutes from './routes/properties';
 import { securityHeaders, cors } from './middleware/security';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -29,9 +30,10 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/auth',   authRoutes);
-app.use('/users',  userRoutes);
-app.use('/import', importRoutes);
+app.use('/auth',       authRoutes);
+app.use('/users',      userRoutes);
+app.use('/import',     importRoutes);
+app.use('/properties', propertyRoutes);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {
