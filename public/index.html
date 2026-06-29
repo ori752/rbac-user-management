@@ -254,7 +254,7 @@
     <div class="quick-grid">
       <button class="qbtn admin"   onclick="quickLogin('admin@example.com','admin123')">   <div class="qbtn-dot"></div><div class="qbtn-role">Admin</div>  <div class="qbtn-perm">Full access</div></button>
       <button class="qbtn manager" onclick="quickLogin('manager@example.com','manager123')"><div class="qbtn-dot"></div><div class="qbtn-role">Manager</div><div class="qbtn-perm">Read + assign roles</div></button>
-      <button class="qbtn user"    onclick="quickLogin('user@example.com','user123')">     <div class="qbtn-dot"></div><div class="qbtn-role">User</div>   <div class="qbtn-perm">Own profile only</div></button>
+      <button class="qbtn user"    onclick="quickLogin('user@example.com','user1234')">     <div class="qbtn-dot"></div><div class="qbtn-role">User</div>   <div class="qbtn-perm">Own profile only</div></button>
       <button class="qbtn guest"   onclick="quickLogin('guest@example.com','guest123')">   <div class="qbtn-dot"></div><div class="qbtn-role">Guest</div>  <div class="qbtn-perm">Read-only</div></button>
     </div>
     <div class="divider">or enter credentials</div>
@@ -290,6 +290,7 @@
         <span class="search-icon">🔍</span>
         <input type="text" id="search-input" placeholder="Search users…" oninput="applyFilters()" />
       </div>
+      <button class="btn btn-ghost hidden" id="import-btn" onclick="openImportModal()">⬇ Import Property</button>
       <button class="btn btn-primary hidden" id="create-btn" onclick="openCreateModal()">+ New User</button>
     </div>
 
@@ -418,11 +419,41 @@
   </div>
 </div>
 
+<!-- IMPORT PROPERTY MODAL -->
+<div class="overlay" id="import-overlay">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-head"><h3>Import Property to Guesty</h3><p>Paste an Airbnb or Booking.com listing URL — we'll crawl it and create a draft.</p></div>
+    <div class="field"><label>Property URL</label><input type="text" id="imp-url" placeholder="https://www.airbnb.com/rooms/…" onkeydown="if(event.key==='Enter')submitImport()" /></div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text2);margin-bottom:12px;cursor:pointer">
+      <input type="checkbox" id="imp-preview" style="width:auto" /> Preview only (crawl &amp; map, don't create in Guesty)
+    </label>
+    <div class="error-banner" id="import-err"></div>
+    <div id="import-result"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeImport()">Close</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center;padding:10px;font-size:13px;border-radius:9px" id="import-submit" onclick="submitImport()"><span id="import-label">Import</span></button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"><div class="toast-dot"></div><span id="toast-msg"></span></div>
 
 <script>
 const API = '';
 let token = null, me = null, allUsers = [], activeRole = 'all';
+
+/* ── HTML-escape ─────────────────────────────────────────────────────────────
+ * Prevents XSS when injecting user-supplied data into innerHTML.
+ * Must be applied to every piece of user-controlled text before insertion.
+ */
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g,  '&quot;')
+    .replace(/'/g,  '&#039;');
+}
 
 /* ── utils ── */
 function toast(msg, type = 'success') {
@@ -508,7 +539,10 @@ async function enterApp() {
   document.getElementById('su-name').textContent      = me.name;
   document.getElementById('su-role-text').textContent = me.role;
 
-  if (me.role === 'admin') document.getElementById('create-btn').classList.remove('hidden');
+  if (me.role === 'admin') {
+    document.getElementById('create-btn').classList.remove('hidden');
+    document.getElementById('import-btn').classList.remove('hidden');
+  }
 
   const canSeeAll = me.role === 'admin' || me.role === 'manager';
   if (canSeeAll) {
@@ -526,6 +560,7 @@ async function enterApp() {
 
 function populateProfileBar() {
   const pav = document.getElementById('prof-av');
+  // textContent assignments are inherently XSS-safe; no escaping needed here
   pav.textContent = me.name[0].toUpperCase(); pav.className = `profile-av ${me.role}`;
   document.getElementById('prof-name').textContent  = me.name;
   document.getElementById('prof-email').textContent = me.email;
@@ -574,29 +609,31 @@ function renderTable(users) {
     <tr>
       <td>
         <div class="td-user">
-          <div class="td-av ${u.role}">${u.name[0].toUpperCase()}</div>
+          <div class="td-av ${escHtml(u.role)}">${escHtml(u.name[0].toUpperCase())}</div>
           <div>
-            <div class="td-name">${u.name}${u.id===me.id?'<span class="td-you">you</span>':''}</div>
-            <div class="td-email">${u.email}</div>
+            <div class="td-name">${escHtml(u.name)}${u.id===me.id?'<span class="td-you">you</span>':''}</div>
+            <div class="td-email">${escHtml(u.email)}</div>
           </div>
         </div>
       </td>
-      <td><span class="badge ${u.role}">${u.role}</span></td>
+      <td><span class="badge ${escHtml(u.role)}">${escHtml(u.role)}</span></td>
       <td class="td-date">${new Date(u.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</td>
       <td>
         <div class="row-actions">
-          ${me.role === 'admin' || (me.role === 'manager' && u.id === me.id) ? `<button class="btn btn-edit"   onclick="openEditModal('${u.id}')">Edit</button>` : ''}
-          ${me.role === 'admin' && u.id !== me.id                             ? `<button class="btn btn-danger" onclick="removeUser('${u.id}','${u.name}')">Remove</button>` : ''}
+          ${me.role === 'admin' || (me.role === 'manager' && u.id === me.id) ? `<button class="btn btn-edit"   data-id="${escHtml(u.id)}" onclick="openEditModal(this.dataset.id)">Edit</button>` : ''}
+          ${me.role === 'admin' && u.id !== me.id                             ? `<button class="btn btn-danger" data-id="${escHtml(u.id)}" onclick="removeUser(this.dataset.id)">Remove</button>` : ''}
         </div>
       </td>
     </tr>`).join('');
 }
 
-async function removeUser(id, name) {
+async function removeUser(id) {
+  const u    = allUsers.find(x => x.id === id);
+  const name = u ? u.name : 'this user';
   if (!confirm(`Remove "${name}" permanently?`)) return;
   const r = await req(`/users/${id}`,{method:'DELETE'});
   if (r && r.error) { toast(r.error,'error'); return; }
-  toast(`${name} removed`);
+  toast(`${escHtml(name)} removed`);
   loadUsers();
 }
 
@@ -709,14 +746,77 @@ async function submitProfile() {
   if (me.role==='admin'||me.role==='manager') loadUsers();
 }
 
+/* ── import property ── */
+function openImportModal() {
+  document.getElementById('imp-url').value = '';
+  document.getElementById('imp-preview').checked = false;
+  document.getElementById('import-err').style.display = 'none';
+  document.getElementById('import-result').innerHTML = '';
+  document.getElementById('import-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('imp-url').focus(), 120);
+}
+function closeImport() { document.getElementById('import-overlay').classList.remove('open'); }
+
+async function submitImport() {
+  const url     = document.getElementById('imp-url').value.trim();
+  const preview = document.getElementById('imp-preview').checked;
+  const err     = document.getElementById('import-err');
+  const out     = document.getElementById('import-result');
+  err.style.display = 'none'; out.innerHTML = '';
+  if (!url) { err.textContent = 'Please paste a property URL.'; err.style.display = 'block'; return; }
+
+  spin('import-submit', 'import-label', true);
+  out.innerHTML = `<div style="font-size:13px;color:var(--text2);margin:8px 0 2px">⏳ Launching a headless browser to crawl the page… this can take ~30–60s.</div>`;
+
+  let data;
+  try {
+    data = await req('/import', { method: 'POST', body: JSON.stringify({ url, preview }) });
+  } catch (e) {
+    spin('import-submit', 'import-label', false, 'Import');
+    out.innerHTML = ''; err.textContent = 'Request failed: ' + e.message; err.style.display = 'block'; return;
+  }
+  spin('import-submit', 'import-label', false, 'Import');
+
+  if (!data || data.success === false || (data.error && !data.success)) {
+    out.innerHTML = '';
+    err.textContent = (data && (data.error || (data.failedAt ? 'Failed at stage: ' + data.failedAt : ''))) || 'Import failed.';
+    err.style.display = 'block';
+    return;
+  }
+  renderImportResult(data, preview);
+  toast(preview ? 'Preview ready' : 'Draft created in Guesty');
+}
+
+function renderImportResult(d, preview) {
+  const imagesCell = preview
+    ? `${d.picturesMapped ?? d.imagesTotal ?? 0} extracted`
+    : `${d.imagesUploaded ?? 0} / ${d.imagesTotal ?? 0} uploaded`;
+  const rows = [
+    ['Title',                  d.propertyTitle || '—'],
+    ['Platform',               d.platform || '—'],
+    ['Images',                 imagesCell],
+    ['Amenities',              d.amenitiesCount ?? 0],
+    ['Beds / Baths / Guests',  `${d.bedrooms ?? '—'} / ${d.bathrooms ?? '—'} / ${d.capacity ?? '—'}`],
+    ['Location',               [d.city, d.country].filter(Boolean).join(', ') || '—'],
+  ];
+  if (!preview && d.guestyPropertyId) rows.push(['Guesty ID', d.guestyPropertyId]);
+
+  document.getElementById('import-result').innerHTML = `
+    <div class="success-banner" style="display:block">${preview ? 'Preview only — nothing was created in Guesty.' : '✅ Draft created in Guesty Sandbox.'}</div>
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:10px">
+      ${rows.map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:3px 0"><span style="color:var(--text2)">${escHtml(k)}</span><span style="font-weight:600;text-align:right;max-width:280px;overflow:hidden;text-overflow:ellipsis">${escHtml(String(v))}</span></div>`).join('')}
+      ${(!preview && d.guestyListingUrl) ? `<a href="${escHtml(d.guestyListingUrl)}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:10px;display:inline-flex">Open in Guesty ↗</a>` : ''}
+    </div>`;
+}
+
 /* ── keyboard / click-outside ── */
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
-  ['create-overlay','edit-overlay','profile-overlay'].forEach(id =>
+  ['create-overlay','edit-overlay','profile-overlay','import-overlay'].forEach(id =>
     document.getElementById(id).classList.remove('open')
   );
 });
-['create-overlay','edit-overlay','profile-overlay'].forEach(id => {
+['create-overlay','edit-overlay','profile-overlay','import-overlay'].forEach(id => {
   document.getElementById(id).addEventListener('click', e => {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
   });
