@@ -71,4 +71,7 @@ export interface PropertyData {
   rating?: number;
   reviewCount?: number;
   currencyCode?: string;
+
+  /** House rules + check-in info as plain strings (e.g. "No smoking", "No pets"). */
+  houseRules?: string[];
 }

@@ -257,6 +257,27 @@ function extractAmenities(data: unknown): string[] {
   return [...new Set(flat)]; // deduplicate
 }
 
+// ─── House-rules extraction ───────────────────────────────────────────────────
+
+/**
+ * Collects house rules + check-in info from Airbnb's `houseRulesSections`
+ * (each group has an `items` array of { title, subtitle }).
+ */
+function extractHouseRules(data: unknown): string[] {
+  const rules: string[] = [];
+  for (const groups of deepFindAll<unknown[]>(data, 'houseRulesSections')) {
+    if (!Array.isArray(groups)) continue;
+    for (const group of groups) {
+      const items = deepFind<unknown[]>(group, 'items') ?? [];
+      for (const item of items) {
+        const title = (item as Record<string, unknown>)['title'];
+        if (typeof title === 'string' && title.trim()) rules.push(title.trim());
+      }
+    }
+  }
+  return [...new Set(rules)];
+}
+
 // ─── Main extractor ───────────────────────────────────────────────────────────
 
 function extractListingId(url: string): string | undefined {
@@ -374,6 +395,7 @@ function parseNextData(raw: string, sourceUrl: string): PropertyData {
     propertyType,
     roomType,
     location,
+    houseRules:  extractHouseRules(root),
     rating,
     reviewCount,
   };

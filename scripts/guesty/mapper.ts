@@ -113,8 +113,13 @@ export function mapToGuestyPayload(data: PropertyData): GuestyListingPayload {
 
     amenities:    data.amenities.length > 0 ? data.amenities : undefined,
 
-    publicDescription: data.description
-      ? { summary: data.description.slice(0, 5_000) }  // Guesty description max
+    publicDescription: (data.description || (data.houseRules && data.houseRules.length))
+      ? {
+          ...(data.description ? { summary: data.description.slice(0, 5_000) } : {}),
+          ...(data.houseRules && data.houseRules.length
+            ? { houseRules: data.houseRules.join(' · ').slice(0, 5_000) }
+            : {}),
+        }
       : undefined,
 
     address:  mapAddress(data.location),

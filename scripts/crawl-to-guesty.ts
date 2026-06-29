@@ -116,6 +116,7 @@ function printDryRunSummary(
   console.log(`  Capacity    : ${crawled.capacity}`);
   console.log(`  Images      : ${crawled.images.length}`);
   console.log(`  Amenities   : ${crawled.amenities.length}`);
+  console.log(`  House Rules : ${crawled.houseRules?.length ?? 0}`);
   console.log(`  Location    : ${[crawled.location.city, crawled.location.country].filter(Boolean).join(', ') || '—'}`);
   console.log(`  Description : ${crawled.description.slice(0, 120)}${crawled.description.length > 120 ? '…' : ''}`);
 
@@ -233,7 +234,7 @@ async function run(): Promise<void> {
   // ── Dry-run exit ────────────────────────────────────────────────────────────
   if (dryRun) {
     printDryRunSummary(url, crawled, guestyPayload);
-    emitJson({ success: true, dryRun: true, picturesMapped: guestyPayload.pictures?.length ?? 0 });
+    emitJson({ success: true, dryRun: true, picturesMapped: guestyPayload.pictures?.length ?? 0, houseRulesCount: crawled.houseRules?.length ?? 0 });
     process.exit(0);
   }
 
