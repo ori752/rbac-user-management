@@ -273,7 +273,8 @@
       <div class="logo-text">RBAC<span>User Management</span></div>
     </div>
     <div class="nav-label">Navigation</div>
-    <a class="nav-item active" href="#"><span class="nav-icon">⚡</span>Dashboard<span class="nav-badge" id="nav-total">0</span></a>
+    <a class="nav-item active" href="#" id="nav-dashboard" onclick="showView('dashboard');return false"><span class="nav-icon">⚡</span>Dashboard<span class="nav-badge" id="nav-total">0</span></a>
+    <a class="nav-item" href="#" id="nav-properties" onclick="showView('properties');return false"><span class="nav-icon">🏠</span>Properties<span class="nav-badge" id="nav-prop-count">0</span></a>
     <a class="nav-item" href="#" onclick="openProfileModal();return false"><span class="nav-icon">👤</span>My Profile</a>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-user" onclick="logout()">
@@ -295,6 +296,7 @@
     </div>
 
     <div id="page">
+      <div id="dashboard-view">
       <!-- Stats -->
       <div class="stats-grid">
         <div class="stat purple"><div class="stat-top"><div class="stat-icon">👑</div><span class="stat-label">Admins</span></div><div class="stat-value" id="cnt-admin">—</div><div class="stat-sub">Full system access</div></div>
@@ -341,6 +343,12 @@
             <tbody id="tbody"></tbody>
           </table>
         </div>
+      </div>
+      </div><!-- /dashboard-view -->
+
+      <div id="properties-view" class="hidden">
+        <div class="section-label">Imported Properties</div>
+        <div id="prop-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px"></div>
       </div>
     </div>
   </div>
@@ -556,6 +564,8 @@ async function enterApp() {
       `You are signed in as "${me.role}" — only admins and managers can view the full user directory.`;
     updateStats([me]);
   }
+
+  loadProperties();
 }
 
 function populateProfileBar() {
@@ -785,6 +795,7 @@ async function submitImport() {
   }
   renderImportResult(data, preview);
   toast(preview ? 'Preview ready' : 'Draft created in Guesty');
+  if (!preview) loadProperties();
 }
 
 function renderImportResult(d, preview) {
@@ -807,6 +818,55 @@ function renderImportResult(d, preview) {
       ${rows.map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:3px 0"><span style="color:var(--text2)">${escHtml(k)}</span><span style="font-weight:600;text-align:right;max-width:280px;overflow:hidden;text-overflow:ellipsis">${escHtml(String(v))}</span></div>`).join('')}
       ${(!preview && d.guestyListingUrl) ? `<a href="${escHtml(d.guestyListingUrl)}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:10px;display:inline-flex">Open in Guesty ↗</a>` : ''}
     </div>`;
+}
+
+/* ── properties view ── */
+function showView(view) {
+  const dash  = document.getElementById('dashboard-view');
+  const props = document.getElementById('properties-view');
+  document.getElementById('nav-dashboard').classList.toggle('active', view === 'dashboard');
+  document.getElementById('nav-properties').classList.toggle('active', view === 'properties');
+  if (view === 'properties') {
+    dash.classList.add('hidden'); props.classList.remove('hidden');
+    document.getElementById('topbar-title').textContent = 'Imported Properties';
+    loadProperties();
+  } else {
+    props.classList.add('hidden'); dash.classList.remove('hidden');
+    document.getElementById('topbar-title').textContent = 'Dashboard';
+  }
+}
+
+async function loadProperties() {
+  const grid = document.getElementById('prop-grid');
+  const list = await req('/properties');
+  if (!Array.isArray(list)) { grid.innerHTML = '<div style="color:var(--red);font-size:13px;padding:20px">Failed to load properties.</div>'; return; }
+  document.getElementById('nav-prop-count').textContent = list.length;
+  grid.innerHTML = list.length
+    ? list.map(renderPropCard).join('')
+    : '<div style="color:var(--text2);font-size:14px;padding:28px;text-align:center;grid-column:1/-1">No properties imported yet. Click "⬇ Import Property" to add one.</div>';
+}
+
+function renderPropCard(p) {
+  const thumb = p.thumbnail
+    ? `<img src="${escHtml(p.thumbnail)}" alt="" style="width:100%;height:150px;object-fit:cover;display:block;background:var(--surface3)" onerror="this.style.display='none'">`
+    : `<div style="height:150px;display:flex;align-items:center;justify-content:center;font-size:30px;background:var(--surface3)">🏠</div>`;
+  return `
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden">
+    ${thumb}
+    <div style="padding:14px 16px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span class="badge ${p.platform === 'airbnb' ? 'user' : 'manager'}">${escHtml(p.platform || '—')}</span>
+        <span style="font-size:11px;color:var(--muted);margin-left:auto">${new Date(p.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+      </div>
+      <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(p.title)}">${escHtml(p.title)}</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px">${escHtml([p.city, p.country].filter(Boolean).join(', ') || '—')}</div>
+      <div style="display:flex;gap:10px;font-size:11px;color:var(--text2);margin-top:10px;flex-wrap:wrap">
+        <span>🖼️ ${p.images} photos</span><span>✨ ${p.amenities} amenities</span><span>📋 ${p.houseRules} rules</span>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-top:8px">${p.bedrooms ?? '—'} BR · ${p.bathrooms ?? '—'} BA · ${p.capacity ?? '—'} guests</div>
+      ${p.guestyUrl ? `<a href="${escHtml(p.guestyUrl)}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:12px;display:inline-flex">Open in Guesty ↗</a>` : ''}
+    </div>
+  </div>`;
 }
 
 /* ── keyboard / click-outside ── */

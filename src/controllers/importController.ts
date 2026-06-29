@@ -14,6 +14,8 @@
 import { Request, Response } from 'express';
 import { spawn } from 'child_process';
 import * as path from 'path';
+import { propertyStore } from '../data/propertyStore';
+import { store } from '../data/store';
 
 // scripts/crawl-to-guesty.ts uses these exit codes; surfaced for the UI.
 const RESULT_MARKER = '__PIPELINE_RESULT__';
@@ -118,6 +120,28 @@ export async function importProperty(req: Request, res: Response): Promise<void>
   try {
     const result = await runPipeline(check.url, preview);
     if (result.success) {
+      // Record real (non-preview) imports so they appear in the Properties view.
+      if (!preview && result.guestyPropertyId) {
+        const importer = req.currentUser ? store.findById(req.currentUser.userId) : undefined;
+        propertyStore.add({
+          guestyId:   String(result.guestyPropertyId),
+          guestyUrl:  result.guestyListingUrl as string | undefined,
+          title:      String(result.propertyTitle ?? 'Untitled property'),
+          platform:   String(result.platform ?? ''),
+          sourceUrl:  String(result.sourceUrl ?? check.url),
+          thumbnail:  result.thumbnail as string | undefined,
+          images:     Number(result.imagesUploaded ?? result.imagesTotal ?? 0),
+          amenities:  Number(result.amenitiesCount ?? 0),
+          houseRules: Number(result.houseRulesCount ?? 0),
+          bedrooms:   result.bedrooms  as number | undefined,
+          bathrooms:  result.bathrooms as number | undefined,
+          capacity:   result.capacity  as number | undefined,
+          city:       result.city      as string | undefined,
+          country:    result.country   as string | undefined,
+          importedBy: importer?.name ?? importer?.email ?? 'unknown',
+          createdAt:  new Date().toISOString(),
+        });
+      }
       res.status(200).json(result);
     } else {
       // Pipeline ran but a stage failed (crawl/auth/create) — 422 with detail.

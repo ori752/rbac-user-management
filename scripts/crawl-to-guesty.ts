@@ -234,7 +234,7 @@ async function run(): Promise<void> {
   // ── Dry-run exit ────────────────────────────────────────────────────────────
   if (dryRun) {
     printDryRunSummary(url, crawled, guestyPayload);
-    emitJson({ success: true, dryRun: true, picturesMapped: guestyPayload.pictures?.length ?? 0, houseRulesCount: crawled.houseRules?.length ?? 0 });
+    emitJson({ success: true, dryRun: true, picturesMapped: guestyPayload.pictures?.length ?? 0, houseRulesCount: crawled.houseRules?.length ?? 0, thumbnail: crawled.images[0]?.url });
     process.exit(0);
   }
 
@@ -313,7 +313,7 @@ async function run(): Promise<void> {
 
   notifPayload = { ...notifPayload, success: true, summary };
 
-  emitJson();
+  emitJson({ thumbnail: crawled.images[0]?.url, houseRulesCount: crawled.houseRules?.length ?? 0 });
   await notify(notifPayload);
   process.exit(0);
 }
