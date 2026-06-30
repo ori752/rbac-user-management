@@ -12,7 +12,8 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
-    "crawl": "ts-node --project tsconfig.scripts.json scripts/crawl-to-guesty.ts"
+    "crawl": "ts-node --project tsconfig.scripts.json scripts/crawl-to-guesty.ts",
+    "leads": "ts-node --project tsconfig.scripts.json scripts/prospecting/run.ts"
   },
   "keywords": [
     "rbac",
