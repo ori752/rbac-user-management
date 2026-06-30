@@ -562,8 +562,8 @@ function escHtml(str) {
 // Allowlist URL schemes before putting a value in an href. HTML-entity escaping
 // does NOT neutralize a javascript:/data: scheme, and the CSP uses
 // script-src 'unsafe-inline', so it wouldn't block one either — return '#' for
-// anything that isn't a plain http(s) URL. Externally-sourced URLs (Guesty
-// links) flow through here; combine with escHtml for the attribute context.
+// anything that isn't a plain http(s) URL. Externally-sourced URLs (listing /
+// Guesty links) flow through here; combine with escHtml for the attribute.
 function safeUrl(u) {
   const s = String(u == null ? '' : u).trim();
   return /^https?:\/\//i.test(s) ? s : '#';
@@ -1266,7 +1266,7 @@ function renderLeadCard(l, i) {
       <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">Business contact</div>
       ${contactBits.map(([k, v]) => `<div style="display:flex;gap:8px;font-size:12px;padding:1px 0"><span style="color:var(--text2);min-width:62px">${escHtml(k)}</span><span style="font-weight:500;overflow:hidden;text-overflow:ellipsis">${escHtml(String(v))}</span></div>`).join('') || '<span style="font-size:12px;color:var(--muted)">—</span>'}
     </div>
-    ${l.listingUrl ? `<a href="${escHtml(l.listingUrl)}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:12px;display:inline-flex">Open listing ↗</a>` : ''}
+    ${l.listingUrl ? `<a href="${escHtml(safeUrl(l.listingUrl))}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:12px;display:inline-flex">Open listing ↗</a>` : ''}
   </div>`;
 }
 
