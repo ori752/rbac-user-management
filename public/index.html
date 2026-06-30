@@ -291,6 +291,10 @@
         <span class="search-icon">🔍</span>
         <input type="text" id="search-input" placeholder="Search users…" oninput="applyFilters()" />
       </div>
+      <div style="position:relative">
+        <button class="btn btn-ghost" id="notif-btn" onclick="toggleNotifs()" style="padding:7px 11px;font-size:15px">🔔<span id="notif-badge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:0 5px;line-height:16px;min-width:16px;text-align:center"></span></button>
+        <div id="notif-panel" class="hidden" style="position:absolute;right:0;top:44px;width:330px;max-height:420px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.55);z-index:60;padding:8px;display:flex;flex-direction:column;gap:4px"></div>
+      </div>
       <button class="btn btn-ghost hidden" id="import-btn" onclick="openImportModal()">⬇ Import Property</button>
       <button class="btn btn-primary hidden" id="create-btn" onclick="openCreateModal()">+ New User</button>
     </div>
@@ -566,6 +570,7 @@ async function enterApp() {
   }
 
   loadProperties();
+  loadNotifs();
 }
 
 function populateProfileBar() {
@@ -795,7 +800,7 @@ async function submitImport() {
   }
   renderImportResult(data, preview);
   toast(preview ? 'Preview ready' : 'Draft created in Guesty');
-  if (!preview) loadProperties();
+  if (!preview) { loadProperties(); loadNotifs(); }
 }
 
 function renderImportResult(d, preview) {
@@ -867,6 +872,35 @@ function renderPropCard(p) {
       ${p.guestyUrl ? `<a href="${escHtml(p.guestyUrl)}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:12px;display:inline-flex">Open in Guesty ↗</a>` : ''}
     </div>
   </div>`;
+}
+
+/* ── notifications (in-app manager feed) ── */
+let notifsOpen = false;
+async function loadNotifs() {
+  const list = await req('/notifications');
+  if (!Array.isArray(list)) return;
+  const unread = list.filter(n => !n.read).length;
+  const badge  = document.getElementById('notif-badge');
+  if (unread > 0) { badge.textContent = unread; badge.style.display = 'block'; } else { badge.style.display = 'none'; }
+  document.getElementById('notif-panel').innerHTML = list.length
+    ? list.slice(0, 20).map(n => `
+      <div style="padding:10px 12px;border-radius:8px;${n.read ? '' : 'background:rgba(99,102,241,.08)'}">
+        <div style="font-size:13px;line-height:1.45">${escHtml(n.message)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${new Date(n.createdAt).toLocaleString()}${n.guestyUrl ? ` · <a href="${escHtml(n.guestyUrl)}" target="_blank" rel="noopener" style="color:var(--indigo-l)">Open ↗</a>` : ''}</div>
+      </div>`).join('')
+    : '<div style="padding:18px;text-align:center;color:var(--text2);font-size:13px">No notifications yet</div>';
+}
+async function toggleNotifs() {
+  notifsOpen = !notifsOpen;
+  const panel = document.getElementById('notif-panel');
+  if (notifsOpen) {
+    panel.classList.remove('hidden');
+    await loadNotifs();
+    await req('/notifications/read', { method: 'POST' });
+    document.getElementById('notif-badge').style.display = 'none';
+  } else {
+    panel.classList.add('hidden');
+  }
 }
 
 /* ── keyboard / click-outside ── */
