@@ -243,9 +243,52 @@
     .skeleton { color:transparent !important; background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 37%,var(--surface2) 63%); background-size:400% 100%; animation:shimmer 1.4s ease infinite; border-radius:6px; }
     .skeleton * { visibility:hidden; }
     @keyframes shimmer { 0%{background-position:100% 0} 100%{background-position:0 0} }
+
+    /* ── accessibility ── */
+    /* Visible keyboard focus ring (mouse clicks don't trigger :focus-visible) */
+    :focus-visible { outline:2px solid var(--indigo-l); outline-offset:2px; border-radius:6px; }
+    /* Screen-reader-only utility + skip link */
+    .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+    .skip-link { position:absolute;left:-999px;top:8px;z-index:200;background:var(--indigo);color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600; }
+    .skip-link:focus { left:8px; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; scroll-behavior:auto !important; }
+    }
+
+    /* ── responsive ── */
+    @media (max-width: 860px) {
+      #shell { flex-direction:column; height:auto; min-height:100vh; overflow:visible; }
+      #sidebar {
+        width:100%; flex-direction:row; flex-wrap:nowrap; align-items:center;
+        padding:8px 12px; gap:6px; border-right:none; border-bottom:1px solid var(--border);
+        position:sticky; top:0; z-index:50; overflow-x:auto;
+      }
+      .sidebar-logo { padding:0 12px 0 4px; margin:0; border-bottom:none; border-right:1px solid var(--border); flex-shrink:0; }
+      .logo-text span { display:none; }
+      .nav-label { display:none; }
+      .nav-item { margin-bottom:0; padding:7px 10px; white-space:nowrap; flex-shrink:0; }
+      .nav-badge { display:none; }
+      .sidebar-spacer { display:none; }
+      .sidebar-user { border-top:none; padding:6px 8px; margin-left:auto; flex-shrink:0; }
+      .su-info { display:none; }
+      #main { height:auto; overflow:visible; }
+      #topbar { height:auto; min-height:56px; padding:8px 16px; gap:8px; flex-wrap:wrap; }
+      .topbar-title { flex-basis:100%; order:-1; }
+      #search-input, #search-input:focus { width:150px; }
+      #page { padding:18px 16px; }
+    }
+    @media (max-width: 560px) {
+      .stats-grid { grid-template-columns:repeat(2,1fr); }
+      .search-wrap { display:none; }
+      .profile-bar { flex-direction:column; align-items:flex-start; }
+      .table-card { overflow-x:auto; }
+      .table-card table { min-width:460px; }
+      .modal { padding:22px; }
+    }
   </style>
 </head>
 <body>
+<a href="#main" class="skip-link">Skip to main content</a>
 
 <!-- LOGIN -->
 <div id="login-page">
@@ -282,22 +325,22 @@
     <a class="nav-item" href="#" id="nav-properties" onclick="showView('properties');return false"><span class="nav-icon">🏠</span>Properties<span class="nav-badge" id="nav-prop-count">0</span></a>
     <a class="nav-item" href="#" onclick="openProfileModal();return false"><span class="nav-icon">👤</span>My Profile</a>
     <div class="sidebar-spacer"></div>
-    <div class="sidebar-user" onclick="logout()">
+    <div class="sidebar-user" onclick="logout()" role="button" tabindex="0" aria-label="Sign out" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout()}">
       <div class="td-av" id="su-av" style="width:32px;height:32px;border-radius:9px;font-size:13px"></div>
       <div class="su-info"><div class="su-name" id="su-name"></div><div class="su-role" id="su-role-text"></div></div>
       <span class="su-out" title="Sign out">↪</span>
     </div>
   </div>
 
-  <div id="main">
+  <div id="main" tabindex="-1">
     <div id="topbar">
       <div class="topbar-title" id="topbar-title">Dashboard</div>
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input type="text" id="search-input" placeholder="Search users…" oninput="debouncedFilter()" />
+        <input type="text" id="search-input" placeholder="Search users…" aria-label="Search users" oninput="debouncedFilter()" />
       </div>
       <div style="position:relative">
-        <button class="btn btn-ghost" id="notif-btn" onclick="toggleNotifs()" style="padding:7px 11px;font-size:15px">🔔<span id="notif-badge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:0 5px;line-height:16px;min-width:16px;text-align:center"></span></button>
+        <button class="btn btn-ghost" id="notif-btn" onclick="toggleNotifs()" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" style="padding:7px 11px;font-size:15px"><span aria-hidden="true">🔔</span><span id="notif-badge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:0 5px;line-height:16px;min-width:16px;text-align:center"></span></button>
         <div id="notif-panel" class="hidden" style="position:absolute;right:0;top:44px;width:330px;max-height:420px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.55);z-index:60;padding:8px;display:flex;flex-direction:column;gap:4px"></div>
       </div>
       <button class="btn btn-ghost hidden" id="import-btn" onclick="openImportModal()">⬇ Import Property</button>
@@ -1136,6 +1179,7 @@ async function loadNotifs() {
 async function toggleNotifs() {
   notifsOpen = !notifsOpen;
   const panel = document.getElementById('notif-panel');
+  document.getElementById('notif-btn').setAttribute('aria-expanded', String(notifsOpen));
   if (notifsOpen) {
     panel.classList.remove('hidden');
     await loadNotifs();
@@ -1158,6 +1202,36 @@ document.addEventListener('keydown', e => {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
   });
 });
+
+/* ── accessibility init (announced errors, dialog semantics, focus, aria-current) ── */
+(function a11yInit() {
+  // Error banners announce to screen readers when populated.
+  document.querySelectorAll('.error-banner').forEach(el => {
+    el.setAttribute('role', 'alert');
+    el.setAttribute('aria-live', 'assertive');
+  });
+  // Modal dialog semantics + move focus to the first control when opened.
+  [['create-overlay','New user'],['edit-overlay','Edit user'],['profile-overlay','Edit profile'],
+   ['confirm-overlay','Confirm action'],['import-overlay','Import property']].forEach(([id, label]) => {
+    const overlay = document.getElementById(id);
+    if (!overlay) return;
+    const modal = overlay.querySelector('.modal');
+    if (modal) { modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true'); modal.setAttribute('aria-label', label); }
+    new MutationObserver(() => {
+      if (overlay.classList.contains('open')) {
+        const first = overlay.querySelector('input:not([type=hidden]), select, textarea, button');
+        if (first) first.focus();
+      }
+    }).observe(overlay, { attributes: true, attributeFilter: ['class'] });
+  });
+  // Keep aria-current in sync with the active nav item.
+  function syncNavCurrent() {
+    document.querySelectorAll('.nav-item').forEach(a =>
+      a.classList.contains('active') ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+  }
+  document.getElementById('sidebar')?.addEventListener('click', () => setTimeout(syncNavCurrent, 0));
+  syncNavCurrent();
+})();
 </script>
 </body>
 </html>

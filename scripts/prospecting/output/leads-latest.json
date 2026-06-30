@@ -1,0 +1,156 @@
+{
+  "generatedAt": "2026-06-30T13:36:29.211Z",
+  "source": "fixture",
+  "evaluated": 6,
+  "minDistress": 40,
+  "leads": [
+    {
+      "listingId": "fx-006",
+      "listingTitle": "Harbor View Apartment",
+      "listingUrl": "https://example.com/listings/harbor-view-apartment",
+      "platform": "airbnb",
+      "location": "San Diego, USA",
+      "diagnosis": {
+        "category": "cleanliness",
+        "severity": 5,
+        "summary": "Recurring cleanliness complaints across 5/5 recent reviews."
+      },
+      "distress": {
+        "score": 100,
+        "signals": [
+          "cluster of 5 recent low-rated reviews",
+          "low overall rating (3.2/5)",
+          "declining recent-vs-older review ratings",
+          "public mention of lost Superhost status",
+          "diagnosed cleanliness problem (severity 5/5)"
+        ],
+        "basis": "inference_from_public_data"
+      },
+      "contact": {
+        "hostName": "Pacific Coast Rentals",
+        "managementCompany": "Pacific Coast Rentals Co",
+        "businessWebsite": "https://example.com/pacific-coast-rentals",
+        "businessEmail": "hello@example.com",
+        "businessPhone": "+1-619-555-0123",
+        "companyLinkedIn": "https://www.linkedin.com/company/example-pacific-coast-rentals"
+      }
+    },
+    {
+      "listingId": "fx-005",
+      "listingTitle": "Lakeside Villa",
+      "listingUrl": "https://example.com/listings/lakeside-villa",
+      "platform": "booking",
+      "location": "Orlando, USA",
+      "diagnosis": {
+        "category": "accuracy",
+        "severity": 4,
+        "summary": "Recurring listing-accuracy complaints across 3/4 recent reviews."
+      },
+      "distress": {
+        "score": 84,
+        "signals": [
+          "cluster of 3 recent low-rated reviews",
+          "low overall rating (3.4/5)",
+          "declining recent-vs-older review ratings",
+          "diagnosed accuracy problem (severity 4/5)"
+        ],
+        "basis": "inference_from_public_data"
+      },
+      "contact": {
+        "hostName": "Sunshine Vacation Homes",
+        "managementCompany": "Sunshine Vacation Homes Inc",
+        "businessWebsite": "https://example.com/sunshine-vacation-homes",
+        "businessEmail": "reservations@example.com",
+        "businessPhone": "+1-407-555-0177"
+      }
+    },
+    {
+      "listingId": "fx-001",
+      "listingTitle": "Sunset Beach Condo",
+      "listingUrl": "https://example.com/listings/sunset-beach-condo",
+      "platform": "airbnb",
+      "location": "Pensacola, USA",
+      "diagnosis": {
+        "category": "cleanliness",
+        "severity": 3,
+        "summary": "Recurring cleanliness complaints across 3/5 recent reviews."
+      },
+      "distress": {
+        "score": 76,
+        "signals": [
+          "cluster of 3 recent low-rated reviews",
+          "below-par overall rating (4.1/5)",
+          "public mention of lost Superhost status",
+          "cancellation/policy complaint in reviews",
+          "diagnosed cleanliness problem (severity 3/5)"
+        ],
+        "basis": "inference_from_public_data"
+      },
+      "contact": {
+        "hostName": "Gulf Coast Stays",
+        "managementCompany": "Gulf Coast STR Management LLC",
+        "businessWebsite": "https://example.com/gulfcoast-str",
+        "businessEmail": "leads@example.com",
+        "businessPhone": "+1-850-555-0142",
+        "companyLinkedIn": "https://www.linkedin.com/company/example-gulfcoast-str"
+      }
+    },
+    {
+      "listingId": "fx-002",
+      "listingTitle": "Downtown Loft 4B",
+      "listingUrl": "https://example.com/listings/downtown-loft-4b",
+      "platform": "booking",
+      "location": "Austin, USA",
+      "diagnosis": {
+        "category": "communication",
+        "severity": 4,
+        "summary": "Recurring communication complaints across 3/4 recent reviews."
+      },
+      "distress": {
+        "score": 72,
+        "signals": [
+          "cluster of 3 recent low-rated reviews",
+          "below-par overall rating (3.6/5)",
+          "declining recent-vs-older review ratings",
+          "diagnosed communication problem (severity 4/5)"
+        ],
+        "basis": "inference_from_public_data"
+      },
+      "contact": {
+        "hostName": "Marcus Reed Rentals",
+        "businessWebsite": "https://example.com/marcus-reed-rentals",
+        "businessEmail": "bookings@example.com"
+      }
+    },
+    {
+      "listingId": "fx-003",
+      "listingTitle": "Mountain Cabin Retreat",
+      "listingUrl": "https://example.com/listings/mountain-cabin-retreat",
+      "platform": "airbnb",
+      "location": "Asheville, USA",
+      "diagnosis": {
+        "category": "maintenance",
+        "severity": 4,
+        "summary": "Recurring maintenance complaints across 3/4 recent reviews."
+      },
+      "distress": {
+        "score": 72,
+        "signals": [
+          "cluster of 3 recent low-rated reviews",
+          "below-par overall rating (3.9/5)",
+          "declining recent-vs-older review ratings",
+          "diagnosed maintenance problem (severity 4/5)"
+        ],
+        "basis": "inference_from_public_data"
+      },
+      "contact": {
+        "hostName": "Blue Ridge Cabins",
+        "managementCompany": "Blue Ridge Cabins LLC",
+        "businessWebsite": "https://example.com/blueridge-cabins",
+        "businessEmail": "info@example.com",
+        "businessPhone": "+1-828-555-0190"
+      }
+    }
+  ],
+  "disclaimer": "Lead scores are an INFERENCE from public review/rating signals for B2B prospecting. They do not reflect Airbnb/Booking-internal delisting status. The lead is the host/owner (a commercial operator); guests who wrote reviews are never profiled or identified."
+}
