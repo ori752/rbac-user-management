@@ -548,6 +548,15 @@ function escHtml(str) {
     .replace(/"/g,  '&quot;')
     .replace(/'/g,  '&#039;');
 }
+// Allowlist URL schemes before putting a value in an href. HTML-entity escaping
+// does NOT neutralize a javascript:/data: scheme, and the CSP uses
+// script-src 'unsafe-inline', so it wouldn't block one either — return '#' for
+// anything that isn't a plain http(s) URL. Externally-sourced URLs (Guesty
+// links) flow through here; combine with escHtml for the attribute context.
+function safeUrl(u) {
+  const s = String(u == null ? '' : u).trim();
+  return /^https?:\/\//i.test(s) ? s : '#';
+}
 
 /* ── utils ── */
 function toast(msg, type = 'success') {
@@ -1107,7 +1116,7 @@ function renderImportResult(d, preview) {
     <div class="success-banner" style="display:block">${preview ? 'Preview only — nothing was created in Guesty.' : '✅ Draft created in Guesty Sandbox.'}</div>
     <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:10px">
       ${rows.map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:3px 0"><span style="color:var(--text2)">${escHtml(k)}</span><span style="font-weight:600;text-align:right;max-width:280px;overflow:hidden;text-overflow:ellipsis">${escHtml(String(v))}</span></div>`).join('')}
-      ${(!preview && d.guestyListingUrl) ? `<a href="${escHtml(d.guestyListingUrl)}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:10px;display:inline-flex">Open in Guesty ↗</a>` : ''}
+      ${(!preview && d.guestyListingUrl) ? `<a href="${escHtml(safeUrl(d.guestyListingUrl))}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:10px;display:inline-flex">Open in Guesty ↗</a>` : ''}
     </div>`;
 }
 
@@ -1155,7 +1164,7 @@ function renderPropCard(p) {
         <span>🖼️ ${p.images} photos</span><span>✨ ${p.amenities} amenities</span><span>📋 ${p.houseRules} rules</span>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-top:8px">${p.bedrooms ?? '—'} BR · ${p.bathrooms ?? '—'} BA · ${p.capacity ?? '—'} guests</div>
-      ${p.guestyUrl ? `<a href="${escHtml(p.guestyUrl)}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:12px;display:inline-flex">Open in Guesty ↗</a>` : ''}
+      ${p.guestyUrl ? `<a href="${escHtml(safeUrl(p.guestyUrl))}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:12px;display:inline-flex">Open in Guesty ↗</a>` : ''}
     </div>
   </div>`;
 }
@@ -1172,7 +1181,7 @@ async function loadNotifs() {
     ? items.slice(0, 20).map(n => `
       <div style="padding:10px 12px;border-radius:8px">
         <div style="font-size:13px;line-height:1.45">${escHtml(n.message)}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">${escHtml(new Date(n.createdAt).toLocaleString())}${n.guestyUrl ? ` · <a href="${escHtml(n.guestyUrl)}" target="_blank" rel="noopener" style="color:var(--indigo-l)">Open ↗</a>` : ''}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${escHtml(new Date(n.createdAt).toLocaleString())}${n.guestyUrl ? ` · <a href="${escHtml(safeUrl(n.guestyUrl))}" target="_blank" rel="noopener" style="color:var(--indigo-l)">Open ↗</a>` : ''}</div>
       </div>`).join('')
     : '<div style="padding:18px;text-align:center;color:var(--text2);font-size:13px">No notifications yet</div>';
 }
