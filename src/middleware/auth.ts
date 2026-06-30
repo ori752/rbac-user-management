@@ -80,21 +80,33 @@ export function authenticate(
  * Route guard — must be used after authenticate().
  * Returns HTTP 403 when the authenticated user's role does not include the
  * requested permission.
+ *
+ * Permissions are resolved from the user's CURRENT role in the store, never the
+ * role claim baked into the token. A stale or forged token therefore cannot grant
+ * a permission, and a role change takes effect on the very next request (no need
+ * to wait for token expiry — though tokenVersion already rejects stale tokens
+ * upstream, this is defense-in-depth on the authorization decision itself).
  */
 export function requirePermission(permission: Permission) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const user = req.currentUser;
-    if (!user) {
+    const claim = req.currentUser;
+    if (!claim) {
       res.status(401).json({ error: 'Not authenticated' });
       return;
     }
 
-    const allowed = ROLE_PERMISSIONS[user.role] as readonly Permission[];
+    const liveUser = store.findById(claim.userId);
+    if (!liveUser) {
+      res.status(401).json({ error: 'Account not found' });
+      return;
+    }
+
+    const allowed = ROLE_PERMISSIONS[liveUser.role] as readonly Permission[];
     if (!allowed.includes(permission)) {
       res.status(403).json({
         error:    'Insufficient permissions',
         required: permission,
-        yourRole: user.role,
+        yourRole: liveUser.role,
       });
       return;
     }

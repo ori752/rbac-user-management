@@ -323,6 +323,7 @@
     <div class="nav-label">Navigation</div>
     <a class="nav-item active" href="#" id="nav-dashboard" onclick="showView('dashboard');return false"><span class="nav-icon">⚡</span>Dashboard<span class="nav-badge" id="nav-total">0</span></a>
     <a class="nav-item" href="#" id="nav-properties" onclick="showView('properties');return false"><span class="nav-icon">🏠</span>Properties<span class="nav-badge" id="nav-prop-count">0</span></a>
+    <a class="nav-item" href="#" id="nav-leads" onclick="showView('leads');return false" style="display:none"><span class="nav-icon">🎯</span>Leads<span class="nav-badge" id="nav-leads-count">0</span></a>
     <a class="nav-item" href="#" onclick="openProfileModal();return false"><span class="nav-icon">👤</span>My Profile</a>
     <div class="sidebar-spacer"></div>
     <div class="sidebar-user" onclick="logout()" role="button" tabindex="0" aria-label="Sign out" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout()}">
@@ -404,6 +405,16 @@
       <div id="properties-view" class="hidden">
         <div class="section-label">Imported Properties</div>
         <div id="prop-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px"></div>
+      </div>
+
+      <div id="leads-view" class="hidden">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div class="section-label" style="margin:0">Host Lead Intelligence</div>
+          <span id="leads-meta" style="font-size:12px;color:var(--muted)"></span>
+          <button class="btn btn-primary" id="leads-run-btn" onclick="runLeadsPipeline()" style="margin-left:auto;display:none">⚙ Run pipeline</button>
+        </div>
+        <div id="leads-disclaimer" style="display:none;margin:12px 0;padding:10px 14px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:10px;font-size:12px;color:var(--amber-l,#fbbf24);line-height:1.5"></div>
+        <div id="leads-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-top:6px"></div>
       </div>
     </div>
   </div>
@@ -650,6 +661,9 @@ async function enterApp() {
   // Action visibility is driven by permissions (same source of truth as backend)
   document.getElementById('create-btn').classList.toggle('hidden', !can('users:create'));
   document.getElementById('import-btn').classList.toggle('hidden', me.role !== 'admin'); // /import is admin-only (requireAdmin)
+  // Leads: nav visible with leads:read (admin+manager); Run button needs leads:run (admin only)
+  document.getElementById('nav-leads').style.display      = can('leads:read') ? '' : 'none';
+  document.getElementById('leads-run-btn').style.display  = can('leads:run')  ? '' : 'none';
 
   const canSeeAll = can('users:read_all');
   // Directory-wide stats are meaningful only to roles that can read all users
@@ -1122,16 +1136,29 @@ function renderImportResult(d, preview) {
 
 /* ── properties view ── */
 function showView(view) {
+  // Guard: never render the Leads view for a role lacking leads:read, even if
+  // the nav were somehow reachable (the server still enforces this on /leads).
+  if (view === 'leads' && !can('leads:read')) view = 'dashboard';
+
   const dash  = document.getElementById('dashboard-view');
   const props = document.getElementById('properties-view');
+  const leads = document.getElementById('leads-view');
   document.getElementById('nav-dashboard').classList.toggle('active', view === 'dashboard');
   document.getElementById('nav-properties').classList.toggle('active', view === 'properties');
+  document.getElementById('nav-leads').classList.toggle('active', view === 'leads');
+
+  dash.classList.add('hidden'); props.classList.add('hidden'); leads.classList.add('hidden');
+
   if (view === 'properties') {
-    dash.classList.add('hidden'); props.classList.remove('hidden');
+    props.classList.remove('hidden');
     document.getElementById('topbar-title').textContent = 'Imported Properties';
     loadProperties();
+  } else if (view === 'leads') {
+    leads.classList.remove('hidden');
+    document.getElementById('topbar-title').textContent = 'Host Lead Intelligence';
+    loadLeads();
   } else {
-    props.classList.add('hidden'); dash.classList.remove('hidden');
+    dash.classList.remove('hidden');
     document.getElementById('topbar-title').textContent = 'Dashboard';
   }
 }
@@ -1167,6 +1194,99 @@ function renderPropCard(p) {
       ${p.guestyUrl ? `<a href="${escHtml(safeUrl(p.guestyUrl))}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:12px;display:inline-flex">Open in Guesty ↗</a>` : ''}
     </div>
   </div>`;
+}
+
+/* ── Host Lead Intelligence (leads:read to view, leads:run to trigger) ── */
+async function loadLeads() {
+  const grid = document.getElementById('leads-grid');
+  const meta = document.getElementById('leads-meta');
+  const disc = document.getElementById('leads-disclaimer');
+  grid.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:24px;grid-column:1/-1">Loading…</div>';
+
+  const report = await req('/leads');
+  if (!report || report.error) {
+    grid.innerHTML = `<div style="color:var(--red);font-size:13px;padding:20px;grid-column:1/-1">${escHtml(report?.error || 'Failed to load leads.')}</div>`;
+    return;
+  }
+
+  // Disclaimer is rendered straight from the report (single source of truth).
+  if (report.disclaimer) { disc.style.display = 'block'; disc.textContent = '⚠ ' + report.disclaimer; }
+  else disc.style.display = 'none';
+
+  if (report.empty || !Array.isArray(report.leads)) {
+    meta.textContent = '';
+    document.getElementById('nav-leads-count').textContent = '0';
+    grid.innerHTML = `<div style="color:var(--text2);font-size:14px;padding:28px;text-align:center;grid-column:1/-1">${escHtml(report.message || 'No leads report yet.')}${can('leads:run') ? ' Click "⚙ Run pipeline" to generate one.' : ''}</div>`;
+    return;
+  }
+
+  const n = report.leads.length;
+  document.getElementById('nav-leads-count').textContent = String(n);
+  const fewer = n < 5 ? ' — fewer than 5 qualified; the report is not padded.' : '';
+  meta.textContent = `${n} qualified hot lead${n === 1 ? '' : 's'} (distress ≥ ${report.minDistress}) of ${report.evaluated} evaluated · source: ${report.source}${fewer}`;
+  grid.innerHTML = n
+    ? report.leads.map(renderLeadCard).join('')
+    : `<div style="color:var(--text2);font-size:14px;padding:28px;text-align:center;grid-column:1/-1">No hosts met the qualified-lead threshold (distress ≥ ${report.minDistress}).</div>`;
+}
+
+function distressColor(s) { return s >= 80 ? 'var(--red)' : s >= 60 ? '#f59e0b' : 'var(--green)'; }
+
+function renderLeadCard(l, i) {
+  const c = l.contact || {};
+  const contactBits = [
+    c.managementCompany ? ['Company', c.managementCompany] : (c.hostName ? ['Host', c.hostName] : null),
+    c.businessEmail   ? ['Email', c.businessEmail] : null,
+    c.businessPhone   ? ['Phone', c.businessPhone] : null,
+    c.businessWebsite ? ['Web', c.businessWebsite] : null,
+    c.companyLinkedIn ? ['LinkedIn', c.companyLinkedIn] : null,
+  ].filter(Boolean);
+  const d = l.diagnosis || {};
+  const sc = l.distress?.score ?? 0;
+  const signals = Array.isArray(l.distress?.signals) ? l.distress.signals : [];
+  return `
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div style="font-size:13px;font-weight:800;color:var(--muted);min-width:20px">#${i + 1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escHtml(l.listingTitle)}">${escHtml(l.listingTitle)}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${escHtml(l.platform || '')}${l.location ? ' · ' + escHtml(l.location) : ''}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:22px;font-weight:800;color:${distressColor(sc)};line-height:1">${sc}</div>
+        <div style="font-size:9px;color:var(--muted);letter-spacing:.5px">DISTRESS</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:8px 10px;background:var(--surface2);border-radius:9px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Recurring problem</div>
+      <div style="font-size:13px;font-weight:600;margin-top:3px">${escHtml(d.category || '—')} <span style="font-weight:400;color:var(--text2)">(severity ${d.severity ?? '—'}/5)</span></div>
+      <div style="font-size:12px;color:var(--text2);margin-top:3px">${escHtml(d.summary || '')}</div>
+    </div>
+    ${signals.length ? `<div style="font-size:11px;color:var(--text2);margin-top:10px"><span style="color:var(--muted)">Evidence:</span> ${signals.map(s => escHtml(s)).join('; ')}</div>` : ''}
+    <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">Business contact</div>
+      ${contactBits.map(([k, v]) => `<div style="display:flex;gap:8px;font-size:12px;padding:1px 0"><span style="color:var(--text2);min-width:62px">${escHtml(k)}</span><span style="font-weight:500;overflow:hidden;text-overflow:ellipsis">${escHtml(String(v))}</span></div>`).join('') || '<span style="font-size:12px;color:var(--muted)">—</span>'}
+    </div>
+    ${l.listingUrl ? `<a href="${escHtml(l.listingUrl)}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:12px;display:inline-flex">Open listing ↗</a>` : ''}
+  </div>`;
+}
+
+async function runLeadsPipeline() {
+  if (!can('leads:run')) return; // server enforces this too (leads:run, admin-only)
+  const btn = document.getElementById('leads-run-btn');
+  const prev = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Running…';
+  const grid = document.getElementById('leads-grid');
+  grid.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:24px;grid-column:1/-1">Running the prospecting pipeline…</div>';
+  try {
+    const res = await req('/leads/run', { method: 'POST' });
+    if (res && res.error) {
+      grid.innerHTML = `<div style="color:var(--red);font-size:13px;padding:20px;grid-column:1/-1">${escHtml(res.error)}</div>`;
+    } else {
+      await loadLeads();
+    }
+  } finally {
+    btn.disabled = false; btn.textContent = prev;
+  }
 }
 
 /* ── notifications (in-app manager feed) ── */

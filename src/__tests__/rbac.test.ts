@@ -31,6 +31,8 @@ describe('RBAC — Permission matrix', () => {
     'users:update_own',
     'users:delete',
     'roles:assign',
+    'leads:read',
+    'leads:run',
   ];
 
   test('admin has every defined permission', () => {
@@ -48,6 +50,8 @@ describe('RBAC — Permission matrix', () => {
       'users:update_own',
       'users:delete',
       'roles:assign',
+      'leads:read',
+      'leads:run',
     ];
     for (const p of denied) {
       expect(hasPermission('guest', p)).toBe(false);
@@ -62,6 +66,8 @@ describe('RBAC — Permission matrix', () => {
     expect(hasPermission('user', 'users:update_any')).toBe(false);
     expect(hasPermission('user', 'users:delete')).toBe(false);
     expect(hasPermission('user', 'roles:assign')).toBe(false);
+    expect(hasPermission('user', 'leads:read')).toBe(false);
+    expect(hasPermission('user', 'leads:run')).toBe(false);
   });
 
   test('manager can read all and assign roles but cannot create or delete', () => {
@@ -72,6 +78,19 @@ describe('RBAC — Permission matrix', () => {
     expect(hasPermission('manager', 'users:create')).toBe(false);
     expect(hasPermission('manager', 'users:update_any')).toBe(false);
     expect(hasPermission('manager', 'users:delete')).toBe(false);
+  });
+
+  test('leads:read is admin+manager; leads:run is admin-only', () => {
+    // read → admin and manager
+    expect(hasPermission('admin',   'leads:read')).toBe(true);
+    expect(hasPermission('manager', 'leads:read')).toBe(true);
+    expect(hasPermission('user',    'leads:read')).toBe(false);
+    expect(hasPermission('guest',   'leads:read')).toBe(false);
+    // run → admin ONLY (manager can read but not trigger)
+    expect(hasPermission('admin',   'leads:run')).toBe(true);
+    expect(hasPermission('manager', 'leads:run')).toBe(false);
+    expect(hasPermission('user',    'leads:run')).toBe(false);
+    expect(hasPermission('guest',   'leads:run')).toBe(false);
   });
 
   test('ROLE_PERMISSIONS contains no unknown permission strings', () => {

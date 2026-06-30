@@ -25,7 +25,10 @@ export type Permission =
   | 'users:update_any'
   | 'users:update_own'
   | 'users:delete'
-  | 'roles:assign';
+  | 'roles:assign'
+  // Host Lead Intelligence (B2B prospecting module)
+  | 'leads:read'   // view the generated top-leads report
+  | 'leads:run';   // trigger the prospecting pipeline (stricter than read)
 
 /**
  * Canonical role → permission mapping.
@@ -45,12 +48,15 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'users:update_own',
     'users:delete',
     'roles:assign',
+    'leads:read',
+    'leads:run',
   ],
   manager: [
     'users:read_all',
     'users:read_own',
     'users:update_own',
     'roles:assign',
+    'leads:read',
   ],
   user: [
     'users:read_own',
