@@ -139,23 +139,30 @@ function buildSlackPayload(p: NotificationPayload): SlackPayload {
  *
  * @returns true if the message was posted, false if skipped or failed.
  */
-export async function sendSlackNotification(payload: NotificationPayload): Promise<boolean> {
+/**
+ * Generic Slack webhook sender — reused by both the Guesty property notifier and
+ * the Host Lead report notifier. Silently skips when SLACK_WEBHOOK_URL is unset.
+ */
+export async function sendSlack(payload: SlackPayload): Promise<boolean> {
   const webhookUrl = process.env['SLACK_WEBHOOK_URL'];
   if (!webhookUrl) {
     log.warn('Slack notification skipped — SLACK_WEBHOOK_URL not set in .env');
     return false;
   }
-
   try {
-    await axios.post(webhookUrl, buildSlackPayload(payload), {
+    await axios.post(webhookUrl, payload, {
       timeout: 10_000,
       headers: { 'Content-Type': 'application/json' },
     });
-
-    log.info('Slack notification sent');
+    log.info('Slack message posted');
     return true;
   } catch (err) {
-    log.error('Slack notification failed', { error: (err as Error).message });
+    log.error('Slack post failed', { error: (err as Error).message });
     return false;
   }
+}
+
+/** Posts the Guesty pipeline Slack message (property-shaped payload). */
+export async function sendSlackNotification(payload: NotificationPayload): Promise<boolean> {
+  return sendSlack(buildSlackPayload(payload));
 }

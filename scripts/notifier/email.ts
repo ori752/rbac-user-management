@@ -20,7 +20,7 @@ const log = createLogger('notifier.email');
 
 // ─── Configuration check ──────────────────────────────────────────────────────
 
-function isEmailConfigured(): boolean {
+export function isEmailConfigured(): boolean {
   return Boolean(
     process.env['SMTP_HOST'] &&
     process.env['SMTP_PORT'] &&
@@ -132,7 +132,12 @@ function escHtml(str: string): string {
  *
  * @returns true if the email was sent, false if skipped.
  */
-export async function sendEmailNotification(payload: NotificationPayload): Promise<boolean> {
+/**
+ * Generic SMTP sender — reused by both the Guesty property notifier and the
+ * Host Lead report notifier. Builds the transport from the same SMTP_* env vars
+ * and silently skips (logs a warning) when email is not configured.
+ */
+export async function sendEmail(opts: { subject: string; text: string; html?: string }): Promise<boolean> {
   if (!isEmailConfigured()) {
     log.warn(
       'Email notification skipped — SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, ' +
@@ -142,37 +147,33 @@ export async function sendEmailNotification(payload: NotificationPayload): Promi
   }
 
   const port = parseInt(process.env['SMTP_PORT'] ?? '587', 10);
-
   const transport = nodemailer.createTransport({
     host:   process.env['SMTP_HOST']!,
     port,
     secure: port === 465, // SSL for 465, STARTTLS for 587
-    auth: {
-      user: process.env['SMTP_USER']!,
-      pass: process.env['SMTP_PASS']!,
-    },
+    auth: { user: process.env['SMTP_USER']!, pass: process.env['SMTP_PASS']! },
   });
-
-  const subject = payload.success
-    ? `[Guesty] ✅ New listing created: ${payload.propertyTitle}`
-    : `[Guesty] ❌ Pipeline failed: ${payload.propertyTitle || payload.sourceUrl}`;
 
   try {
     const info = await transport.sendMail({
       from:    process.env['NOTIFY_EMAIL_FROM'] ?? process.env['SMTP_USER']!,
       to:      process.env['NOTIFY_EMAIL_TO']!,
-      subject,
-      text:    buildEmailText(payload),
-      html:    buildEmailHtml(payload),
+      subject: opts.subject,
+      text:    opts.text,
+      html:    opts.html,
     });
-
-    log.info('Email notification sent', {
-      to:        process.env['NOTIFY_EMAIL_TO'],
-      messageId: info.messageId,
-    });
+    log.info('Email sent', { to: process.env['NOTIFY_EMAIL_TO'], messageId: info.messageId });
     return true;
   } catch (err) {
-    log.error('Email notification failed', { error: (err as Error).message });
+    log.error('Email send failed', { error: (err as Error).message });
     return false;
   }
+}
+
+/** Sends the Guesty pipeline email (property-shaped payload). */
+export async function sendEmailNotification(payload: NotificationPayload): Promise<boolean> {
+  const subject = payload.success
+    ? `[Guesty] ✅ New listing created: ${payload.propertyTitle}`
+    : `[Guesty] ❌ Pipeline failed: ${payload.propertyTitle || payload.sourceUrl}`;
+  return sendEmail({ subject, text: buildEmailText(payload), html: buildEmailHtml(payload) });
 }

@@ -148,7 +148,9 @@ export interface LeadsReport {
   source: string;
   /** Total listings evaluated. */
   evaluated: number;
-  /** Top leads, ranked by distress score (typically top 5). */
+  /** Qualified-lead distress floor; hosts below it are excluded (never padded). */
+  minDistress: number;
+  /** Top leads, ranked by distress score (up to 5 — may be fewer). */
   leads: HostLead[];
   /** Carried with every report so the inference framing is never lost. */
   disclaimer: string;
