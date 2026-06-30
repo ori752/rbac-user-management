@@ -109,6 +109,15 @@ export interface ReviewDiagnosis {
 }
 
 /**
+ * Diagnoses a listing's recurring problem from its public reviews (aggregate).
+ * Implementations: Claude (production) or a deterministic heuristic (no key).
+ */
+export interface ReviewAnalyzer {
+  readonly name: string;
+  analyze(listing: SourceListing): Promise<ReviewDiagnosis>;
+}
+
+/**
  * Distress / delisting-risk signal. This is explicitly an INFERENCE from PUBLIC
  * data only; it does NOT reflect any platform-internal delisting status. The
  * `basis` literal carries that disclaimer with the data itself.
