@@ -316,8 +316,8 @@
         <div><div class="profile-name" id="prof-name"></div><div class="profile-email" id="prof-email"></div></div>
         <div class="profile-right">
           <span class="badge" id="prof-badge"></span>
-          <span class="profile-id" id="prof-id"></span>
-          <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="openProfileModal()">Edit profile</button>
+          <button class="btn btn-ghost" id="prof-copy-id" style="font-size:11px;padding:4px 10px" onclick="copyMyId()" title="Copy your account ID">⧉ Copy ID</button>
+          <button class="btn btn-ghost" id="prof-edit-btn" style="font-size:12px;padding:5px 12px" onclick="openProfileModal()">Edit profile</button>
         </div>
       </div>
 
@@ -367,7 +367,7 @@
       <div class="field"><label>Last name</label><input type="text"  id="c-lname" placeholder="Smith" /></div>
     </div>
     <div class="field"><label>Email address</label><input type="email" id="c-email" placeholder="jane@company.com" /></div>
-    <div class="field"><label>Password</label><input type="password" id="c-pass" placeholder="Min. 6 characters" onkeydown="if(event.key==='Enter')submitCreate()" /></div>
+    <div class="field"><label>Password</label><input type="password" id="c-pass" placeholder="Min. 8 characters" onkeydown="if(event.key==='Enter')submitCreate()" /></div>
     <div class="field"><label>Role</label>
       <select id="c-role">
         <option value="user">User — own profile only</option>
@@ -389,12 +389,14 @@
   <div class="modal">
     <div class="modal-head"><h3>Edit User</h3><p id="edit-subtitle">Update name, email, or role</p></div>
     <input type="hidden" id="e-id" />
+    <div id="e-profile-fields">
     <div class="form-row">
       <div class="field"><label>First name</label><input type="text" id="e-fname" placeholder="Jane" /></div>
       <div class="field"><label>Last name</label> <input type="text" id="e-lname" placeholder="Smith" /></div>
     </div>
     <div class="field"><label>Email address</label><input type="email" id="e-email" /></div>
     <div class="field"><label>New password <span style="color:var(--muted);font-weight:400">(leave blank to keep current)</span></label><input type="password" id="e-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitEdit()" /></div>
+    </div>
     <div class="field" id="e-role-field"><label>Role</label>
       <select id="e-role">
         <option value="user">User</option>
@@ -453,6 +455,15 @@
 <script>
 const API = '';
 let token = null, me = null, allUsers = [], activeRole = 'all';
+
+/* ── permission gate ───────────────────────────────────────────────────────
+ * Single client-side source of truth: the permissions array the backend
+ * returns on login/me (derived from ROLE_PERMISSIONS). UI gating only — the
+ * backend independently enforces every action.
+ */
+function can(perm) { return !!(me && Array.isArray(me.permissions) && me.permissions.includes(perm)); }
+// Privilege levels — used ONLY to limit role-select options; backend enforces.
+const ROLE_LEVEL = { guest: 0, user: 1, manager: 2, admin: 3 };
 
 /* ── HTML-escape ─────────────────────────────────────────────────────────────
  * Prevents XSS when injecting user-supplied data into innerHTML.
@@ -551,12 +562,13 @@ async function enterApp() {
   document.getElementById('su-name').textContent      = me.name;
   document.getElementById('su-role-text').textContent = me.role;
 
-  if (me.role === 'admin') {
-    document.getElementById('create-btn').classList.remove('hidden');
-    document.getElementById('import-btn').classList.remove('hidden');
-  }
+  // Action visibility is driven by permissions (same source of truth as backend)
+  document.getElementById('create-btn').classList.toggle('hidden', !can('users:create'));
+  document.getElementById('import-btn').classList.toggle('hidden', me.role !== 'admin'); // /import is admin-only (requireAdmin)
 
-  const canSeeAll = me.role === 'admin' || me.role === 'manager';
+  const canSeeAll = can('users:read_all');
+  // Directory-wide stats are meaningful only to roles that can read all users
+  document.querySelector('.stats-grid').style.display = canSeeAll ? '' : 'none';
   if (canSeeAll) {
     document.getElementById('access-denied').style.display = 'none';
     document.getElementById('users-section').style.display = 'block';
@@ -565,8 +577,7 @@ async function enterApp() {
     document.getElementById('users-section').style.display = 'none';
     document.getElementById('access-denied').style.display = 'block';
     document.getElementById('denied-msg').textContent =
-      `You are signed in as "${me.role}" — only admins and managers can view the full user directory.`;
-    updateStats([me]);
+      `You're signed in as "${me.role}". Your role can view and manage only your own profile.`;
   }
 
   loadProperties();
@@ -579,8 +590,24 @@ function populateProfileBar() {
   pav.textContent = me.name[0].toUpperCase(); pav.className = `profile-av ${me.role}`;
   document.getElementById('prof-name').textContent  = me.name;
   document.getElementById('prof-email').textContent = me.email;
-  document.getElementById('prof-id').textContent    = me.id;
   setBadge('prof-badge', me.role);
+  // Guests lack users:update_own — hide profile editing for them
+  document.getElementById('prof-edit-btn').style.display = can('users:update_own') ? '' : 'none';
+}
+
+function copyMyId() {
+  const done = () => toast('Account ID copied');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(me.id).then(done).catch(() => fallbackCopy(me.id));
+  } else { fallbackCopy(me.id); }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast('Account ID copied'); }
+  catch { toast('Copy failed', 'error'); }
+  document.body.removeChild(ta);
 }
 
 async function loadUsers() {
@@ -617,6 +644,23 @@ function applyFilters() {
     : `${filtered.length} of ${allUsers.length}`;
 }
 
+// Row actions gated by permissions + ownership, mirroring backend enforcement.
+function rowActions(u) {
+  const isSelf         = u.id === me.id;
+  const canEditProfile = can('users:update_any') || (isSelf && can('users:update_own'));
+  const canChangeRole  = can('roles:assign') && (can('users:update_any') || !isSelf);
+  const canRemove      = can('users:delete') && !isSelf && u.role !== 'admin';
+  let html = '';
+  if (canEditProfile || canChangeRole) {
+    const label = canEditProfile ? 'Edit' : 'Role';
+    html += `<button class="btn btn-edit" data-id="${escHtml(u.id)}" onclick="openEditModal(this.dataset.id)">${label}</button>`;
+  }
+  if (canRemove) {
+    html += `<button class="btn btn-danger" data-id="${escHtml(u.id)}" onclick="removeUser(this.dataset.id)">Remove</button>`;
+  }
+  return html;
+}
+
 function renderTable(users) {
   document.getElementById('tbody').innerHTML = !users.length
     ? `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted);font-size:14px">No users found</td></tr>`
@@ -634,10 +678,7 @@ function renderTable(users) {
       <td><span class="badge ${escHtml(u.role)}">${escHtml(u.role)}</span></td>
       <td class="td-date">${new Date(u.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</td>
       <td>
-        <div class="row-actions">
-          ${me.role === 'admin' || (me.role === 'manager' && u.id === me.id) ? `<button class="btn btn-edit"   data-id="${escHtml(u.id)}" onclick="openEditModal(this.dataset.id)">Edit</button>` : ''}
-          ${me.role === 'admin' && u.id !== me.id                             ? `<button class="btn btn-danger" data-id="${escHtml(u.id)}" onclick="removeUser(this.dataset.id)">Remove</button>` : ''}
-        </div>
+        <div class="row-actions">${rowActions(u)}</div>
       </td>
     </tr>`).join('');
 }
@@ -680,20 +721,36 @@ async function submitCreate() {
 function openEditModal(id) {
   const u = allUsers.find(x => x.id === id);
   if (!u) return;
+  const isSelf         = u.id === me.id;
+  const canEditProfile = can('users:update_any') || (isSelf && can('users:update_own'));
+  const canChangeRole  = can('roles:assign') && (can('users:update_any') || !isSelf);
+
   const {first, last} = nameParts(u.name);
   document.getElementById('e-id').value    = u.id;
   document.getElementById('e-fname').value = first;
   document.getElementById('e-lname').value = last;
   document.getElementById('e-email').value = u.email;
   document.getElementById('e-pass').value  = '';
-  document.getElementById('e-role').value  = u.role;
-  document.getElementById('edit-subtitle').textContent = `Editing ${u.name}`;
-  // only admins can change roles
-  document.getElementById('e-role-field').style.display = me.role === 'admin' ? 'block' : 'none';
+  document.getElementById('e-profile-fields').style.display = canEditProfile ? '' : 'none';
+
+  // Role select: only when permitted, with options limited to assignable roles.
+  if (canChangeRole) {
+    const all     = ['guest','user','manager','admin'];
+    const allowed = me.role === 'admin' ? all : all.filter(r => ROLE_LEVEL[r] < ROLE_LEVEL[me.role]);
+    document.getElementById('e-role').innerHTML =
+      allowed.map(r => `<option value="${escHtml(r)}">${escHtml(r[0].toUpperCase()+r.slice(1))}</option>`).join('');
+    document.getElementById('e-role').value = allowed.includes(u.role) ? u.role : allowed[allowed.length-1];
+    document.getElementById('e-role-field').style.display = '';
+  } else {
+    document.getElementById('e-role-field').style.display = 'none';
+  }
+
+  document.getElementById('edit-subtitle').textContent =
+    canEditProfile ? `Editing ${u.name}` : `Change role — ${u.name}`;
   document.getElementById('edit-err').style.display = 'none';
   document.getElementById('edit-ok').style.display  = 'none';
   document.getElementById('edit-overlay').classList.add('open');
-  setTimeout(()=>document.getElementById('e-fname').focus(),120);
+  setTimeout(()=>document.getElementById(canEditProfile ? 'e-fname' : 'e-role').focus(),120);
 }
 function closeEdit() { document.getElementById('edit-overlay').classList.remove('open'); }
 
@@ -707,9 +764,18 @@ async function submitEdit() {
   const ok    = document.getElementById('edit-ok');
   err.style.display = 'none'; ok.style.display = 'none';
 
-  const body = {name, email};
-  if (pass) body.password = pass;
-  if (me.role === 'admin') body.role = role;
+  const isSelf         = id === me.id;
+  const canEditProfile = can('users:update_any') || (isSelf && can('users:update_own'));
+  const canChangeRole  = can('roles:assign') && (can('users:update_any') || !isSelf);
+
+  const body = {};
+  if (canEditProfile) {
+    body.name  = name;
+    body.email = email;
+    if (pass) body.password = pass;
+  }
+  if (canChangeRole) body.role = role;
+  if (Object.keys(body).length === 0) { err.textContent = 'Nothing to update.'; err.style.display = 'block'; return; }
 
   spin('edit-submit','edit-label',true);
   const data = await req(`/users/${id}`,{method:'PUT',body:JSON.stringify(body)});
