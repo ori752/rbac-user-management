@@ -550,6 +550,116 @@ describe('DELETE /users/:id', () => {
   });
 });
 
+// ─── Self password-change requires current password ──────────────────────────
+
+describe('PUT /users/:id — self password change requires current password', () => {
+  let pwUserId: string;
+  let pwToken:  string;
+
+  beforeAll(async () => {
+    const create = await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Pw Tester', email: 'pwtester@example.com', password: 'origpassword1', role: 'user' });
+    pwUserId = create.body.id;
+    const login = await request(app)
+      .post('/auth/login')
+      .send({ email: 'pwtester@example.com', password: 'origpassword1' });
+    pwToken = login.body.token;
+  });
+
+  test('self password change WITHOUT current password → 401', async () => {
+    const res = await request(app)
+      .put(`/users/${pwUserId}`)
+      .set('Authorization', `Bearer ${pwToken}`)
+      .send({ password: 'newpassword1' });
+    expect(res.status).toBe(401);
+  });
+
+  test('self password change with WRONG current password → 401', async () => {
+    const res = await request(app)
+      .put(`/users/${pwUserId}`)
+      .set('Authorization', `Bearer ${pwToken}`)
+      .send({ password: 'newpassword1', currentPassword: 'totallywrong' });
+    expect(res.status).toBe(401);
+  });
+
+  test('self password change with CORRECT current password → 200, old token invalidated, new password works', async () => {
+    const res = await request(app)
+      .put(`/users/${pwUserId}`)
+      .set('Authorization', `Bearer ${pwToken}`)
+      .send({ password: 'newpassword1', currentPassword: 'origpassword1' });
+    expect(res.status).toBe(200);
+
+    // tokenVersion bumped → old token rejected
+    const after = await request(app)
+      .get(`/users/${pwUserId}`)
+      .set('Authorization', `Bearer ${pwToken}`);
+    expect(after.status).toBe(401);
+
+    // new password authenticates
+    const relogin = await request(app)
+      .post('/auth/login')
+      .send({ email: 'pwtester@example.com', password: 'newpassword1' });
+    expect(relogin.status).toBe(200);
+  });
+
+  test('admin resetting ANOTHER user password does NOT require current password → 200', async () => {
+    const res = await request(app)
+      .put(`/users/${pwUserId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ password: 'adminreset1' });
+    expect(res.status).toBe(200);
+  });
+});
+
+// ─── Role-scoped notification feed ────────────────────────────────────────────
+
+describe('GET /notifications — role-scoped', () => {
+  test('returns { items, unread } shape', async () => {
+    const res = await request(app)
+      .get('/notifications')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.items)).toBe(true);
+    expect(typeof res.body.unread).toBe('number');
+  });
+
+  test('admin sees system-wide security events (failed logins)', async () => {
+    await request(app).post('/auth/login').send({ email: 'admin@example.com', password: 'wrongpass99' });
+    const res = await request(app)
+      .get('/notifications')
+      .set('Authorization', `Bearer ${adminToken}`);
+    const msgs = res.body.items.map((i: { message: string }) => i.message);
+    expect(msgs.some((m: string) => /failed login/i.test(m))).toBe(true);
+  });
+
+  test('guest never sees admin/security events or import notifications', async () => {
+    // Earlier role-assignment tests bumped the guest's tokenVersion, so re-login.
+    const fresh = await request(app)
+      .post('/auth/login')
+      .send({ email: 'guest@example.com', password: 'guest123' });
+    const res = await request(app)
+      .get('/notifications')
+      .set('Authorization', `Bearer ${fresh.body.token}`);
+    const items = res.body.items as { message: string; kind: string }[];
+    expect(items.some((i) => /failed login/i.test(i.message))).toBe(false);
+    expect(items.every((i) => i.kind !== 'import')).toBe(true);
+  });
+
+  test('manager does not see admin-actor activity', async () => {
+    await request(app)
+      .post('/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Scoped Probe', email: 'scopedprobe@example.com', password: 'securepass1', role: 'user' });
+    const res = await request(app)
+      .get('/notifications')
+      .set('Authorization', `Bearer ${managerToken}`);
+    const msgs = res.body.items.map((i: { message: string }) => i.message);
+    expect(msgs.some((m: string) => /scopedprobe@example\.com/i.test(m))).toBe(false);
+  });
+});
+
 // ─── Security headers ─────────────────────────────────────────────────────────
 
 describe('Security headers', () => {

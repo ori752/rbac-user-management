@@ -238,9 +238,57 @@
     @keyframes spin    { to{transform:rotate(360deg)} }
 
     .hidden { display:none !important; }
+
+    /* ── skeleton loading ── */
+    .skeleton { color:transparent !important; background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 37%,var(--surface2) 63%); background-size:400% 100%; animation:shimmer 1.4s ease infinite; border-radius:6px; }
+    .skeleton * { visibility:hidden; }
+    @keyframes shimmer { 0%{background-position:100% 0} 100%{background-position:0 0} }
+
+    /* ── accessibility ── */
+    /* Visible keyboard focus ring (mouse clicks don't trigger :focus-visible) */
+    :focus-visible { outline:2px solid var(--indigo-l); outline-offset:2px; border-radius:6px; }
+    /* Screen-reader-only utility + skip link */
+    .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+    .skip-link { position:absolute;left:-999px;top:8px;z-index:200;background:var(--indigo);color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600; }
+    .skip-link:focus { left:8px; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; scroll-behavior:auto !important; }
+    }
+
+    /* ── responsive ── */
+    @media (max-width: 860px) {
+      #shell { flex-direction:column; height:auto; min-height:100vh; overflow:visible; }
+      #sidebar {
+        width:100%; flex-direction:row; flex-wrap:nowrap; align-items:center;
+        padding:8px 12px; gap:6px; border-right:none; border-bottom:1px solid var(--border);
+        position:sticky; top:0; z-index:50; overflow-x:auto;
+      }
+      .sidebar-logo { padding:0 12px 0 4px; margin:0; border-bottom:none; border-right:1px solid var(--border); flex-shrink:0; }
+      .logo-text span { display:none; }
+      .nav-label { display:none; }
+      .nav-item { margin-bottom:0; padding:7px 10px; white-space:nowrap; flex-shrink:0; }
+      .nav-badge { display:none; }
+      .sidebar-spacer { display:none; }
+      .sidebar-user { border-top:none; padding:6px 8px; margin-left:auto; flex-shrink:0; }
+      .su-info { display:none; }
+      #main { height:auto; overflow:visible; }
+      #topbar { height:auto; min-height:56px; padding:8px 16px; gap:8px; flex-wrap:wrap; }
+      .topbar-title { flex-basis:100%; order:-1; }
+      #search-input, #search-input:focus { width:150px; }
+      #page { padding:18px 16px; }
+    }
+    @media (max-width: 560px) {
+      .stats-grid { grid-template-columns:repeat(2,1fr); }
+      .search-wrap { display:none; }
+      .profile-bar { flex-direction:column; align-items:flex-start; }
+      .table-card { overflow-x:auto; }
+      .table-card table { min-width:460px; }
+      .modal { padding:22px; }
+    }
   </style>
 </head>
 <body>
+<a href="#main" class="skip-link">Skip to main content</a>
 
 <!-- LOGIN -->
 <div id="login-page">
@@ -277,22 +325,22 @@
     <a class="nav-item" href="#" id="nav-properties" onclick="showView('properties');return false"><span class="nav-icon">🏠</span>Properties<span class="nav-badge" id="nav-prop-count">0</span></a>
     <a class="nav-item" href="#" onclick="openProfileModal();return false"><span class="nav-icon">👤</span>My Profile</a>
     <div class="sidebar-spacer"></div>
-    <div class="sidebar-user" onclick="logout()">
+    <div class="sidebar-user" onclick="logout()" role="button" tabindex="0" aria-label="Sign out" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout()}">
       <div class="td-av" id="su-av" style="width:32px;height:32px;border-radius:9px;font-size:13px"></div>
       <div class="su-info"><div class="su-name" id="su-name"></div><div class="su-role" id="su-role-text"></div></div>
       <span class="su-out" title="Sign out">↪</span>
     </div>
   </div>
 
-  <div id="main">
+  <div id="main" tabindex="-1">
     <div id="topbar">
       <div class="topbar-title" id="topbar-title">Dashboard</div>
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input type="text" id="search-input" placeholder="Search users…" oninput="applyFilters()" />
+        <input type="text" id="search-input" placeholder="Search users…" aria-label="Search users" oninput="debouncedFilter()" />
       </div>
       <div style="position:relative">
-        <button class="btn btn-ghost" id="notif-btn" onclick="toggleNotifs()" style="padding:7px 11px;font-size:15px">🔔<span id="notif-badge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:0 5px;line-height:16px;min-width:16px;text-align:center"></span></button>
+        <button class="btn btn-ghost" id="notif-btn" onclick="toggleNotifs()" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" style="padding:7px 11px;font-size:15px"><span aria-hidden="true">🔔</span><span id="notif-badge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:0 5px;line-height:16px;min-width:16px;text-align:center"></span></button>
         <div id="notif-panel" class="hidden" style="position:absolute;right:0;top:44px;width:330px;max-height:420px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;box-shadow:0 16px 48px rgba(0,0,0,.55);z-index:60;padding:8px;display:flex;flex-direction:column;gap:4px"></div>
       </div>
       <button class="btn btn-ghost hidden" id="import-btn" onclick="openImportModal()">⬇ Import Property</button>
@@ -316,8 +364,8 @@
         <div><div class="profile-name" id="prof-name"></div><div class="profile-email" id="prof-email"></div></div>
         <div class="profile-right">
           <span class="badge" id="prof-badge"></span>
-          <span class="profile-id" id="prof-id"></span>
-          <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="openProfileModal()">Edit profile</button>
+          <button class="btn btn-ghost" id="prof-copy-id" style="font-size:11px;padding:4px 10px" onclick="copyMyId()" title="Copy your account ID">⧉ Copy ID</button>
+          <button class="btn btn-ghost" id="prof-edit-btn" style="font-size:12px;padding:5px 12px" onclick="openProfileModal()">Edit profile</button>
         </div>
       </div>
 
@@ -327,6 +375,9 @@
         <h3>Access Restricted</h3>
         <p id="denied-msg"></p>
       </div>
+
+      <!-- Your Access panel (roles without the full directory) -->
+      <div id="access-panel" style="display:none"></div>
 
       <!-- Users table -->
       <div id="users-section">
@@ -367,7 +418,7 @@
       <div class="field"><label>Last name</label><input type="text"  id="c-lname" placeholder="Smith" /></div>
     </div>
     <div class="field"><label>Email address</label><input type="email" id="c-email" placeholder="jane@company.com" /></div>
-    <div class="field"><label>Password</label><input type="password" id="c-pass" placeholder="Min. 6 characters" onkeydown="if(event.key==='Enter')submitCreate()" /></div>
+    <div class="field"><label>Password</label><input type="password" id="c-pass" placeholder="Min. 8 characters" onkeydown="if(event.key==='Enter')submitCreate()" /></div>
     <div class="field"><label>Role</label>
       <select id="c-role">
         <option value="user">User — own profile only</option>
@@ -389,12 +440,14 @@
   <div class="modal">
     <div class="modal-head"><h3>Edit User</h3><p id="edit-subtitle">Update name, email, or role</p></div>
     <input type="hidden" id="e-id" />
+    <div id="e-profile-fields">
     <div class="form-row">
       <div class="field"><label>First name</label><input type="text" id="e-fname" placeholder="Jane" /></div>
       <div class="field"><label>Last name</label> <input type="text" id="e-lname" placeholder="Smith" /></div>
     </div>
     <div class="field"><label>Email address</label><input type="email" id="e-email" /></div>
     <div class="field"><label>New password <span style="color:var(--muted);font-weight:400">(leave blank to keep current)</span></label><input type="password" id="e-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitEdit()" /></div>
+    </div>
     <div class="field" id="e-role-field"><label>Role</label>
       <select id="e-role">
         <option value="user">User</option>
@@ -421,12 +474,32 @@
       <div class="field"><label>Last name</label> <input type="text" id="p-lname" /></div>
     </div>
     <div class="field"><label>Email address</label><input type="email" id="p-email-in" /></div>
-    <div class="field"><label>New password <span style="color:var(--muted);font-weight:400">(leave blank to keep current)</span></label><input type="password" id="p-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitProfile()" /></div>
+    <div class="field">
+      <label>New password <span style="color:var(--muted);font-weight:400">(leave blank to keep current)</span></label>
+      <input type="password" id="p-pass" placeholder="••••••••" oninput="onPwInput()" />
+      <div id="pw-strength" style="display:none;margin-top:8px">
+        <div style="height:4px;border-radius:99px;background:var(--surface3);overflow:hidden"><div id="pw-bar" style="height:100%;width:0;transition:width .2s,background .2s"></div></div>
+        <div id="pw-hint" style="font-size:11px;margin-top:5px;color:var(--text2)"></div>
+      </div>
+    </div>
+    <div class="field" id="p-confirm-field" style="display:none"><label>Confirm new password</label><input type="password" id="p-confirm" placeholder="••••••••" /></div>
+    <div class="field" id="p-current-field" style="display:none"><label>Current password <span style="color:var(--muted);font-weight:400">(required to change password)</span></label><input type="password" id="p-current" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitProfile()" /></div>
     <div class="error-banner"   id="profile-err"></div>
     <div class="success-banner" id="profile-ok"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeProfile()">Cancel</button>
       <button class="btn btn-primary" style="flex:1;justify-content:center;padding:10px;font-size:13px;border-radius:9px" id="profile-submit" onclick="submitProfile()"><span id="profile-label">Save changes</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div class="overlay" id="confirm-overlay">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-head"><h3 id="confirm-title">Are you sure?</h3><p id="confirm-msg"></p></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="confirm-cancel">Cancel</button>
+      <button class="btn btn-primary" id="confirm-ok" style="flex:1;justify-content:center;padding:10px;font-size:13px;border-radius:9px">Confirm</button>
     </div>
   </div>
 </div>
@@ -454,6 +527,15 @@
 const API = '';
 let token = null, me = null, allUsers = [], activeRole = 'all';
 
+/* ── permission gate ───────────────────────────────────────────────────────
+ * Single client-side source of truth: the permissions array the backend
+ * returns on login/me (derived from ROLE_PERMISSIONS). UI gating only — the
+ * backend independently enforces every action.
+ */
+function can(perm) { return !!(me && Array.isArray(me.permissions) && me.permissions.includes(perm)); }
+// Privilege levels — used ONLY to limit role-select options; backend enforces.
+const ROLE_LEVEL = { guest: 0, user: 1, manager: 2, admin: 3 };
+
 /* ── HTML-escape ─────────────────────────────────────────────────────────────
  * Prevents XSS when injecting user-supplied data into innerHTML.
  * Must be applied to every piece of user-controlled text before insertion.
@@ -466,6 +548,15 @@ function escHtml(str) {
     .replace(/"/g,  '&quot;')
     .replace(/'/g,  '&#039;');
 }
+// Allowlist URL schemes before putting a value in an href. HTML-entity escaping
+// does NOT neutralize a javascript:/data: scheme, and the CSP uses
+// script-src 'unsafe-inline', so it wouldn't block one either — return '#' for
+// anything that isn't a plain http(s) URL. Externally-sourced URLs (Guesty
+// links) flow through here; combine with escHtml for the attribute context.
+function safeUrl(u) {
+  const s = String(u == null ? '' : u).trim();
+  return /^https?:\/\//i.test(s) ? s : '#';
+}
 
 /* ── utils ── */
 function toast(msg, type = 'success') {
@@ -476,12 +567,17 @@ function toast(msg, type = 'success') {
   el._t = setTimeout(() => el.className = '', 3200);
 }
 async function req(path, opts = {}) {
-  const r = await fetch(API + path, {
-    headers: { 'Content-Type':'application/json', ...(token ? {Authorization:`Bearer ${token}`} : {}) },
-    ...opts,
-  });
+  let r;
+  try {
+    r = await fetch(API + path, {
+      headers: { 'Content-Type':'application/json', ...(token ? {Authorization:`Bearer ${token}`} : {}) },
+      ...opts,
+    });
+  } catch {
+    return { error: 'Network error — check your connection and try again.' };
+  }
   if (r.status === 204) return null;
-  return r.json();
+  try { return await r.json(); } catch { return { error: `Unexpected server response (${r.status}).` }; }
 }
 function spin(btnId, labelId, on, text = '') {
   document.getElementById(btnId).disabled = on;
@@ -551,22 +647,23 @@ async function enterApp() {
   document.getElementById('su-name').textContent      = me.name;
   document.getElementById('su-role-text').textContent = me.role;
 
-  if (me.role === 'admin') {
-    document.getElementById('create-btn').classList.remove('hidden');
-    document.getElementById('import-btn').classList.remove('hidden');
-  }
+  // Action visibility is driven by permissions (same source of truth as backend)
+  document.getElementById('create-btn').classList.toggle('hidden', !can('users:create'));
+  document.getElementById('import-btn').classList.toggle('hidden', me.role !== 'admin'); // /import is admin-only (requireAdmin)
 
-  const canSeeAll = me.role === 'admin' || me.role === 'manager';
+  const canSeeAll = can('users:read_all');
+  // Directory-wide stats are meaningful only to roles that can read all users
+  document.querySelector('.stats-grid').style.display = canSeeAll ? '' : 'none';
+  document.getElementById('access-denied').style.display = 'none';
   if (canSeeAll) {
-    document.getElementById('access-denied').style.display = 'none';
+    document.getElementById('access-panel').style.display = 'none';
     document.getElementById('users-section').style.display = 'block';
+    setUsersLoading(true);
     await loadUsers();
   } else {
     document.getElementById('users-section').style.display = 'none';
-    document.getElementById('access-denied').style.display = 'block';
-    document.getElementById('denied-msg').textContent =
-      `You are signed in as "${me.role}" — only admins and managers can view the full user directory.`;
-    updateStats([me]);
+    document.getElementById('access-panel').style.display = 'block';
+    renderAccessPanel();
   }
 
   loadProperties();
@@ -579,13 +676,38 @@ function populateProfileBar() {
   pav.textContent = me.name[0].toUpperCase(); pav.className = `profile-av ${me.role}`;
   document.getElementById('prof-name').textContent  = me.name;
   document.getElementById('prof-email').textContent = me.email;
-  document.getElementById('prof-id').textContent    = me.id;
   setBadge('prof-badge', me.role);
+  // Guests lack users:update_own — hide profile editing for them
+  document.getElementById('prof-edit-btn').style.display = can('users:update_own') ? '' : 'none';
+}
+
+function copyMyId() {
+  const done = () => toast('Account ID copied');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(me.id).then(done).catch(() => fallbackCopy(me.id));
+  } else { fallbackCopy(me.id); }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); toast('Account ID copied'); }
+  catch { toast('Copy failed', 'error'); }
+  document.body.removeChild(ta);
 }
 
 async function loadUsers() {
-  const users = await req('/users');
-  if (!users || users.error) return;
+  let users;
+  try { users = await req('/users'); } catch { users = null; }
+  setUsersLoading(false);
+  if (!users || users.error) {
+    const msg = (users && users.error) || 'Could not load users. Please try again.';
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--red);font-size:14px">${escHtml(msg)}</td></tr>`;
+    ['cnt-admin','cnt-manager','cnt-user','cnt-guest'].forEach(id => document.getElementById(id).textContent = '—');
+    toast(msg, 'error');
+    return;
+  }
   allUsers = users;
   updateStats(users);
   document.getElementById('nav-total').textContent = users.length;
@@ -598,6 +720,52 @@ function updateStats(users) {
   );
 }
 
+// Skeleton placeholders for the stat cards + table while /users is in flight.
+function setUsersLoading(on) {
+  ['cnt-admin','cnt-manager','cnt-user','cnt-guest'].forEach(id => {
+    const el = document.getElementById(id);
+    if (on) { el.classList.add('skeleton'); el.textContent = '00'; } else { el.classList.remove('skeleton'); }
+  });
+  if (on) {
+    document.getElementById('tbody').innerHTML = Array.from({ length: 5 }).map(() => `
+      <tr>
+        <td><div class="td-user"><div class="skeleton" style="width:34px;height:34px;border-radius:10px"></div>
+          <div><div class="skeleton" style="width:130px;height:13px;margin-bottom:6px"></div><div class="skeleton" style="width:170px;height:11px"></div></div></div></td>
+        <td><div class="skeleton" style="width:64px;height:18px;border-radius:5px"></div></td>
+        <td><div class="skeleton" style="width:84px;height:13px"></div></td>
+        <td></td>
+      </tr>`).join('');
+  }
+}
+
+// Plain-language permission labels for the "Your Access" panel.
+const PERM_LABELS = {
+  'users:read_all':   'View all users in the directory',
+  'users:read_own':   'View your own profile',
+  'users:create':     'Create new users',
+  'users:update_any': "Edit any user's profile",
+  'users:update_own': 'Edit your own profile',
+  'users:delete':     'Delete users',
+  'roles:assign':     'Assign roles to users',
+};
+// Meaningful dashboard for roles that can't read the directory (user/guest).
+function renderAccessPanel() {
+  const items = (me.permissions || []).map(p =>
+    `<li style="display:flex;align-items:center;gap:9px;padding:6px 0;font-size:13px"><span style="color:var(--green);font-weight:700">✓</span>${escHtml(PERM_LABELS[p] || p)}</li>`
+  ).join('');
+  document.getElementById('access-panel').innerHTML = `
+    <div class="section-label">Your Access</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 24px;max-width:560px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span class="badge ${escHtml(me.role)}">${escHtml(me.role)}</span>
+        <span style="font-size:13px;color:var(--text2)">Member since ${escHtml(new Date(me.createdAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}))}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px">What you can do</div>
+      <ul style="list-style:none;margin:0;padding:0">${items}</ul>
+      <p style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.6">Your role doesn't include the full user directory. Need broader access? Contact an administrator.</p>
+    </div>`;
+}
+
 /* ── filter/search ── */
 function setTab(el) {
   document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
@@ -605,6 +773,9 @@ function setTab(el) {
   activeRole = el.dataset.role;
   applyFilters();
 }
+
+let _filterTimer;
+function debouncedFilter() { clearTimeout(_filterTimer); _filterTimer = setTimeout(applyFilters, 180); }
 
 function applyFilters() {
   const q = document.getElementById('search-input').value.toLowerCase();
@@ -617,10 +788,34 @@ function applyFilters() {
     : `${filtered.length} of ${allUsers.length}`;
 }
 
+// Row actions gated by permissions + ownership, mirroring backend enforcement.
+function rowActions(u) {
+  const isSelf         = u.id === me.id;
+  const canEditProfile = can('users:update_any') || (isSelf && can('users:update_own'));
+  const canChangeRole  = can('roles:assign') && (can('users:update_any') || !isSelf);
+  const canRemove      = can('users:delete') && !isSelf && u.role !== 'admin';
+  let html = '';
+  if (canEditProfile || canChangeRole) {
+    const label = canEditProfile ? 'Edit' : 'Role';
+    html += `<button class="btn btn-edit" data-id="${escHtml(u.id)}" onclick="openEditModal(this.dataset.id)">${label}</button>`;
+  }
+  if (canRemove) {
+    html += `<button class="btn btn-danger" data-id="${escHtml(u.id)}" onclick="removeUser(this.dataset.id)">Remove</button>`;
+  }
+  return html;
+}
+
 function renderTable(users) {
-  document.getElementById('tbody').innerHTML = !users.length
-    ? `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted);font-size:14px">No users found</td></tr>`
-    : users.map(u => `
+  if (!users.length) {
+    const q = document.getElementById('search-input').value.trim();
+    const msg = allUsers.length === 0 ? 'No users yet.'
+      : (q || activeRole !== 'all') ? 'No users match your search or filter.'
+      : 'No users found.';
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted);font-size:14px">${escHtml(msg)}</td></tr>`;
+    return;
+  }
+  document.getElementById('tbody').innerHTML = users.map(u => `
     <tr>
       <td>
         <div class="td-user">
@@ -634,21 +829,50 @@ function renderTable(users) {
       <td><span class="badge ${escHtml(u.role)}">${escHtml(u.role)}</span></td>
       <td class="td-date">${new Date(u.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</td>
       <td>
-        <div class="row-actions">
-          ${me.role === 'admin' || (me.role === 'manager' && u.id === me.id) ? `<button class="btn btn-edit"   data-id="${escHtml(u.id)}" onclick="openEditModal(this.dataset.id)">Edit</button>` : ''}
-          ${me.role === 'admin' && u.id !== me.id                             ? `<button class="btn btn-danger" data-id="${escHtml(u.id)}" onclick="removeUser(this.dataset.id)">Remove</button>` : ''}
-        </div>
+        <div class="row-actions">${rowActions(u)}</div>
       </td>
     </tr>`).join('');
+}
+
+/* ── themed confirm dialog (replaces native confirm) ── */
+function confirmDialog({ title = 'Are you sure?', message = '', confirmText = 'Confirm', danger = false } = {}) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('confirm-overlay');
+    const okBtn   = document.getElementById('confirm-ok');
+    const noBtn   = document.getElementById('confirm-cancel');
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent   = message;
+    okBtn.textContent   = confirmText;
+    okBtn.className     = 'btn ' + (danger ? 'btn-danger' : 'btn-primary');
+    okBtn.style.cssText = 'flex:1;justify-content:center;padding:10px;font-size:13px;border-radius:9px';
+    const onKey = (e) => { if (e.key === 'Escape') done(false); };
+    function done(val) {
+      overlay.classList.remove('open');
+      okBtn.onclick = noBtn.onclick = overlay.onclick = null;
+      document.removeEventListener('keydown', onKey);
+      resolve(val);
+    }
+    okBtn.onclick   = () => done(true);
+    noBtn.onclick   = () => done(false);
+    overlay.onclick = (e) => { if (e.target === overlay) done(false); };
+    document.addEventListener('keydown', onKey);
+    overlay.classList.add('open');
+    setTimeout(() => okBtn.focus(), 100);
+  });
 }
 
 async function removeUser(id) {
   const u    = allUsers.find(x => x.id === id);
   const name = u ? u.name : 'this user';
-  if (!confirm(`Remove "${name}" permanently?`)) return;
+  const okConfirm = await confirmDialog({
+    title: 'Remove user',
+    message: `Remove "${name}" permanently? This cannot be undone.`,
+    confirmText: 'Remove', danger: true,
+  });
+  if (!okConfirm) return;
   const r = await req(`/users/${id}`,{method:'DELETE'});
   if (r && r.error) { toast(r.error,'error'); return; }
-  toast(`${escHtml(name)} removed`);
+  toast(`${name} removed`);
   loadUsers();
 }
 
@@ -680,20 +904,36 @@ async function submitCreate() {
 function openEditModal(id) {
   const u = allUsers.find(x => x.id === id);
   if (!u) return;
+  const isSelf         = u.id === me.id;
+  const canEditProfile = can('users:update_any') || (isSelf && can('users:update_own'));
+  const canChangeRole  = can('roles:assign') && (can('users:update_any') || !isSelf);
+
   const {first, last} = nameParts(u.name);
   document.getElementById('e-id').value    = u.id;
   document.getElementById('e-fname').value = first;
   document.getElementById('e-lname').value = last;
   document.getElementById('e-email').value = u.email;
   document.getElementById('e-pass').value  = '';
-  document.getElementById('e-role').value  = u.role;
-  document.getElementById('edit-subtitle').textContent = `Editing ${u.name}`;
-  // only admins can change roles
-  document.getElementById('e-role-field').style.display = me.role === 'admin' ? 'block' : 'none';
+  document.getElementById('e-profile-fields').style.display = canEditProfile ? '' : 'none';
+
+  // Role select: only when permitted, with options limited to assignable roles.
+  if (canChangeRole) {
+    const all     = ['guest','user','manager','admin'];
+    const allowed = me.role === 'admin' ? all : all.filter(r => ROLE_LEVEL[r] < ROLE_LEVEL[me.role]);
+    document.getElementById('e-role').innerHTML =
+      allowed.map(r => `<option value="${escHtml(r)}">${escHtml(r[0].toUpperCase()+r.slice(1))}</option>`).join('');
+    document.getElementById('e-role').value = allowed.includes(u.role) ? u.role : allowed[allowed.length-1];
+    document.getElementById('e-role-field').style.display = '';
+  } else {
+    document.getElementById('e-role-field').style.display = 'none';
+  }
+
+  document.getElementById('edit-subtitle').textContent =
+    canEditProfile ? `Editing ${u.name}` : `Change role — ${u.name}`;
   document.getElementById('edit-err').style.display = 'none';
   document.getElementById('edit-ok').style.display  = 'none';
   document.getElementById('edit-overlay').classList.add('open');
-  setTimeout(()=>document.getElementById('e-fname').focus(),120);
+  setTimeout(()=>document.getElementById(canEditProfile ? 'e-fname' : 'e-role').focus(),120);
 }
 function closeEdit() { document.getElementById('edit-overlay').classList.remove('open'); }
 
@@ -707,9 +947,18 @@ async function submitEdit() {
   const ok    = document.getElementById('edit-ok');
   err.style.display = 'none'; ok.style.display = 'none';
 
-  const body = {name, email};
-  if (pass) body.password = pass;
-  if (me.role === 'admin') body.role = role;
+  const isSelf         = id === me.id;
+  const canEditProfile = can('users:update_any') || (isSelf && can('users:update_own'));
+  const canChangeRole  = can('roles:assign') && (can('users:update_any') || !isSelf);
+
+  const body = {};
+  if (canEditProfile) {
+    body.name  = name;
+    body.email = email;
+    if (pass) body.password = pass;
+  }
+  if (canChangeRole) body.role = role;
+  if (Object.keys(body).length === 0) { err.textContent = 'Nothing to update.'; err.style.display = 'block'; return; }
 
   spin('edit-submit','edit-label',true);
   const data = await req(`/users/${id}`,{method:'PUT',body:JSON.stringify(body)});
@@ -730,6 +979,11 @@ function openProfileModal() {
   document.getElementById('p-lname').value    = last;
   document.getElementById('p-email-in').value = me.email;
   document.getElementById('p-pass').value     = '';
+  document.getElementById('p-confirm').value  = '';
+  document.getElementById('p-current').value  = '';
+  document.getElementById('pw-strength').style.display      = 'none';
+  document.getElementById('p-confirm-field').style.display  = 'none';
+  document.getElementById('p-current-field').style.display  = 'none';
   document.getElementById('profile-err').style.display = 'none';
   document.getElementById('profile-ok').style.display  = 'none';
   document.getElementById('profile-overlay').classList.add('open');
@@ -738,27 +992,68 @@ function openProfileModal() {
 function closeProfile() { document.getElementById('profile-overlay').classList.remove('open'); }
 
 async function submitProfile() {
-  const name  = (document.getElementById('p-fname').value.trim()+' '+document.getElementById('p-lname').value.trim()).trim();
-  const email = document.getElementById('p-email-in').value.trim();
-  const pass  = document.getElementById('p-pass').value;
-  const err   = document.getElementById('profile-err');
-  const ok    = document.getElementById('profile-ok');
+  const name    = (document.getElementById('p-fname').value.trim()+' '+document.getElementById('p-lname').value.trim()).trim();
+  const email   = document.getElementById('p-email-in').value.trim();
+  const pass    = document.getElementById('p-pass').value;
+  const confirm = document.getElementById('p-confirm').value;
+  const current = document.getElementById('p-current').value;
+  const err     = document.getElementById('profile-err');
+  const ok      = document.getElementById('profile-ok');
   err.style.display='none'; ok.style.display='none';
+  const fail = (m) => { err.textContent = m; err.style.display = 'block'; };
+
+  // Client-side validation mirrors the backend (min 8); backend stays authoritative.
+  if (pass) {
+    if (pass.length < 8)    return fail('New password must be at least 8 characters.');
+    if (pass !== confirm)   return fail('New password and confirmation do not match.');
+    if (!current)           return fail('Enter your current password to change it.');
+  }
 
   const body = {name, email};
-  if (pass) body.password = pass;
+  if (pass) { body.password = pass; body.currentPassword = current; }
 
   spin('profile-submit','profile-label',true);
   const data = await req(`/users/${me.id}`,{method:'PUT',body:JSON.stringify(body)});
   spin('profile-submit','profile-label',false,'Save changes');
 
-  if (data && data.error) { err.textContent=data.error; err.style.display='block'; return; }
+  if (data && data.error) { fail(data.error); toast(data.error,'error'); return; }
+
+  // A password change bumps tokenVersion → current token is now invalid; re-login.
+  if (pass) { closeProfile(); toast('Password changed — please sign in again'); logout(); return; }
+
   me = {...me, name:data.name, email:data.email};
   populateProfileBar();
   document.getElementById('su-name').textContent = me.name;
   ok.textContent = 'Profile updated successfully.'; ok.style.display = 'block';
   toast('Profile updated');
   if (me.role==='admin'||me.role==='manager') loadUsers();
+}
+
+/* ── password strength ── */
+function pwStrength(pw) {
+  let s = 0;
+  if (pw.length >= 8)  s++;
+  if (pw.length >= 12) s++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
+  if (/\d/.test(pw)) s++;
+  if (/[^A-Za-z0-9]/.test(pw)) s++;
+  return Math.min(s, 4);
+}
+function onPwInput() {
+  const pw   = document.getElementById('p-pass').value;
+  const show = pw.length > 0;
+  document.getElementById('pw-strength').style.display     = show ? 'block' : 'none';
+  document.getElementById('p-confirm-field').style.display = show ? 'block' : 'none';
+  document.getElementById('p-current-field').style.display = show ? 'block' : 'none';
+  if (!show) return;
+  const lvl    = pwStrength(pw);
+  const colors = ['var(--red)','var(--amber)','var(--amber)','var(--blue)','var(--green)'];
+  const labels = ['Weak','Weak','Fair','Good','Strong'];
+  const tooShort = pw.length < 8;
+  const bar = document.getElementById('pw-bar');
+  bar.style.width      = tooShort ? '15%' : [20,40,60,80,100][lvl] + '%';
+  bar.style.background = tooShort ? 'var(--red)' : colors[lvl];
+  document.getElementById('pw-hint').textContent = tooShort ? 'Too short — minimum 8 characters' : labels[lvl];
 }
 
 /* ── import property ── */
@@ -821,7 +1116,7 @@ function renderImportResult(d, preview) {
     <div class="success-banner" style="display:block">${preview ? 'Preview only — nothing was created in Guesty.' : '✅ Draft created in Guesty Sandbox.'}</div>
     <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-top:10px">
       ${rows.map(([k, v]) => `<div style="display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:3px 0"><span style="color:var(--text2)">${escHtml(k)}</span><span style="font-weight:600;text-align:right;max-width:280px;overflow:hidden;text-overflow:ellipsis">${escHtml(String(v))}</span></div>`).join('')}
-      ${(!preview && d.guestyListingUrl) ? `<a href="${escHtml(d.guestyListingUrl)}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:10px;display:inline-flex">Open in Guesty ↗</a>` : ''}
+      ${(!preview && d.guestyListingUrl) ? `<a href="${escHtml(safeUrl(d.guestyListingUrl))}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:10px;display:inline-flex">Open in Guesty ↗</a>` : ''}
     </div>`;
 }
 
@@ -869,7 +1164,7 @@ function renderPropCard(p) {
         <span>🖼️ ${p.images} photos</span><span>✨ ${p.amenities} amenities</span><span>📋 ${p.houseRules} rules</span>
       </div>
       <div style="font-size:12px;color:var(--text2);margin-top:8px">${p.bedrooms ?? '—'} BR · ${p.bathrooms ?? '—'} BA · ${p.capacity ?? '—'} guests</div>
-      ${p.guestyUrl ? `<a href="${escHtml(p.guestyUrl)}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:12px;display:inline-flex">Open in Guesty ↗</a>` : ''}
+      ${p.guestyUrl ? `<a href="${escHtml(safeUrl(p.guestyUrl))}" target="_blank" rel="noopener" class="btn btn-edit" style="margin-top:12px;display:inline-flex">Open in Guesty ↗</a>` : ''}
     </div>
   </div>`;
 }
@@ -877,22 +1172,23 @@ function renderPropCard(p) {
 /* ── notifications (in-app manager feed) ── */
 let notifsOpen = false;
 async function loadNotifs() {
-  const list = await req('/notifications');
-  if (!Array.isArray(list)) return;
-  const unread = list.filter(n => !n.read).length;
-  const badge  = document.getElementById('notif-badge');
-  if (unread > 0) { badge.textContent = unread; badge.style.display = 'block'; } else { badge.style.display = 'none'; }
-  document.getElementById('notif-panel').innerHTML = list.length
-    ? list.slice(0, 20).map(n => `
-      <div style="padding:10px 12px;border-radius:8px;${n.read ? '' : 'background:rgba(99,102,241,.08)'}">
+  const data = await req('/notifications');
+  if (!data || data.error || !Array.isArray(data.items)) return;
+  const badge = document.getElementById('notif-badge');
+  if (data.unread > 0) { badge.textContent = data.unread; badge.style.display = 'block'; } else { badge.style.display = 'none'; }
+  const items = data.items;
+  document.getElementById('notif-panel').innerHTML = items.length
+    ? items.slice(0, 20).map(n => `
+      <div style="padding:10px 12px;border-radius:8px">
         <div style="font-size:13px;line-height:1.45">${escHtml(n.message)}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">${new Date(n.createdAt).toLocaleString()}${n.guestyUrl ? ` · <a href="${escHtml(n.guestyUrl)}" target="_blank" rel="noopener" style="color:var(--indigo-l)">Open ↗</a>` : ''}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${escHtml(new Date(n.createdAt).toLocaleString())}${n.guestyUrl ? ` · <a href="${escHtml(safeUrl(n.guestyUrl))}" target="_blank" rel="noopener" style="color:var(--indigo-l)">Open ↗</a>` : ''}</div>
       </div>`).join('')
     : '<div style="padding:18px;text-align:center;color:var(--text2);font-size:13px">No notifications yet</div>';
 }
 async function toggleNotifs() {
   notifsOpen = !notifsOpen;
   const panel = document.getElementById('notif-panel');
+  document.getElementById('notif-btn').setAttribute('aria-expanded', String(notifsOpen));
   if (notifsOpen) {
     panel.classList.remove('hidden');
     await loadNotifs();
@@ -915,6 +1211,36 @@ document.addEventListener('keydown', e => {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
   });
 });
+
+/* ── accessibility init (announced errors, dialog semantics, focus, aria-current) ── */
+(function a11yInit() {
+  // Error banners announce to screen readers when populated.
+  document.querySelectorAll('.error-banner').forEach(el => {
+    el.setAttribute('role', 'alert');
+    el.setAttribute('aria-live', 'assertive');
+  });
+  // Modal dialog semantics + move focus to the first control when opened.
+  [['create-overlay','New user'],['edit-overlay','Edit user'],['profile-overlay','Edit profile'],
+   ['confirm-overlay','Confirm action'],['import-overlay','Import property']].forEach(([id, label]) => {
+    const overlay = document.getElementById(id);
+    if (!overlay) return;
+    const modal = overlay.querySelector('.modal');
+    if (modal) { modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true'); modal.setAttribute('aria-label', label); }
+    new MutationObserver(() => {
+      if (overlay.classList.contains('open')) {
+        const first = overlay.querySelector('input:not([type=hidden]), select, textarea, button');
+        if (first) first.focus();
+      }
+    }).observe(overlay, { attributes: true, attributeFilter: ['class'] });
+  });
+  // Keep aria-current in sync with the active nav item.
+  function syncNavCurrent() {
+    document.querySelectorAll('.nav-item').forEach(a =>
+      a.classList.contains('active') ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+  }
+  document.getElementById('sidebar')?.addEventListener('click', () => setTimeout(syncNavCurrent, 0));
+  syncNavCurrent();
+})();
 </script>
 </body>
 </html>

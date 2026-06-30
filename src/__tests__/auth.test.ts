@@ -9,6 +9,7 @@
 
 import request from 'supertest';
 import app from '../app';
+import { ROLE_PERMISSIONS, Role } from '../types/rbac';
 
 // ─── POST /auth/login ─────────────────────────────────────────────────────────
 
@@ -173,6 +174,58 @@ describe('GET /auth/me', () => {
       .get('/auth/me')
       .set('Authorization', token);
     expect(res.status).toBe(401);
+  });
+});
+
+// ─── Permissions payload (source-of-truth contract) ──────────────────────────
+//
+// Locks the contract: the permissions array returned by the API must EXACTLY
+// match ROLE_PERMISSIONS for each role, so the UI's source of truth can never
+// silently drift from the backend's. Also guards that permissions stay OUT of
+// the JWT (token remains role-based; tokenVersion handles invalidation).
+
+describe('permissions in auth response', () => {
+  const accounts: { email: string; password: string; role: Role }[] = [
+    { email: 'admin@example.com',   password: 'admin123',   role: 'admin' },
+    { email: 'manager@example.com', password: 'manager123', role: 'manager' },
+    { email: 'user@example.com',    password: 'user1234',   role: 'user' },
+    { email: 'guest@example.com',   password: 'guest123',   role: 'guest' },
+  ];
+
+  test.each(accounts)(
+    'login for $role returns permissions exactly matching ROLE_PERMISSIONS',
+    async (acc) => {
+      const res = await request(app)
+        .post('/auth/login')
+        .send({ email: acc.email, password: acc.password });
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.permissions).toEqual([...ROLE_PERMISSIONS[acc.role]]);
+    },
+  );
+
+  test('/auth/me returns the same permissions array as login', async () => {
+    const login = await request(app)
+      .post('/auth/login')
+      .send({ email: 'manager@example.com', password: 'manager123' });
+    const me = await request(app)
+      .get('/auth/me')
+      .set('Authorization', `Bearer ${login.body.token}`);
+
+    expect(me.status).toBe(200);
+    expect(me.body.permissions).toEqual([...ROLE_PERMISSIONS.manager]);
+  });
+
+  test('permissions are NOT embedded in the JWT payload', async () => {
+    const login = await request(app)
+      .post('/auth/login')
+      .send({ email: 'admin@example.com', password: 'admin123' });
+
+    const claims = JSON.parse(
+      Buffer.from(login.body.token.split('.')[1], 'base64').toString('utf8'),
+    );
+    expect(claims.permissions).toBeUndefined();
+    expect(claims.role).toBe('admin');
   });
 });
 

@@ -193,6 +193,23 @@ export function updateUser(req: Request, res: Response): void {
   if (password !== undefined && password !== '') {
     const r = validatePassword(password);
     if (!r.ok) { res.status(400).json({ error: r.message }); return; }
+
+    // Self password-change requires re-authentication with the CURRENT password —
+    // this stops a hijacked/live session from silently changing credentials.
+    // Admins resetting ANOTHER user's password are exempt (it's a reset, not a
+    // self-change). Uses the same bcrypt compare as login. tokenVersion (bumped
+    // below) remains the complementary invalidation control.
+    if (requestor.userId === id) {
+      const { currentPassword } = req.body as { currentPassword?: unknown };
+      if (typeof currentPassword !== 'string' || currentPassword.length === 0) {
+        res.status(401).json({ error: 'Current password is required to change your password' });
+        return;
+      }
+      if (!bcrypt.compareSync(currentPassword, existing.passwordHash)) {
+        res.status(401).json({ error: 'Current password is incorrect' });
+        return;
+      }
+    }
   }
 
   // ── Role-change authorisation ──────────────────────────────────────────────

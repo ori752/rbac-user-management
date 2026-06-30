@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { store } from '../data/store';
 import { JWT_SECRET, JWT_EXPIRES_IN } from '../middleware/auth';
-import { UserPublic, JwtPayload } from '../types/rbac';
+import { UserPublic, JwtPayload, Permission, ROLE_PERMISSIONS } from '../types/rbac';
 import { validateEmail, validatePassword } from '../utils/validation';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -11,6 +11,21 @@ import { validateEmail, validatePassword } from '../utils/validation';
 function toPublic(u: NonNullable<ReturnType<typeof store.findById>>): UserPublic {
   const { passwordHash: _ph, tokenVersion: _tv, ...pub } = u;
   return pub;
+}
+
+/**
+ * Public user profile + the role's permission list.
+ *
+ * `permissions` is derived server-side from ROLE_PERMISSIONS on every request
+ * (the single source of truth) and is deliberately NOT embedded in the JWT —
+ * the token stays role-based, so a role change is reflected immediately (via
+ * tokenVersion invalidation) without stale permission claims in old tokens.
+ * This is purely for UI gating; the backend remains the enforcement authority.
+ */
+function toAuthUser(
+  u: NonNullable<ReturnType<typeof store.findById>>,
+): UserPublic & { permissions: Permission[] } {
+  return { ...toPublic(u), permissions: [...ROLE_PERMISSIONS[u.role]] };
 }
 
 function getIp(req: Request): string | null {
@@ -90,7 +105,7 @@ export function login(req: Request, res: Response): void {
     getIp(req),
   );
 
-  res.json({ token, user: toPublic(user!) });
+  res.json({ token, user: toAuthUser(user!) });
 }
 
 /**
@@ -105,5 +120,5 @@ export function me(req: Request, res: Response): void {
     res.status(404).json({ error: 'User not found' });
     return;
   }
-  res.json(toPublic(user));
+  res.json(toAuthUser(user));
 }
