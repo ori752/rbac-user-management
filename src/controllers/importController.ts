@@ -15,6 +15,7 @@ import { Request, Response } from 'express';
 import { spawn } from 'child_process';
 import * as path from 'path';
 import { propertyStore } from '../data/propertyStore';
+import { notificationStore } from '../data/notificationStore';
 import { store } from '../data/store';
 
 // scripts/crawl-to-guesty.ts uses these exit codes; surfaced for the UI.
@@ -140,6 +141,14 @@ export async function importProperty(req: Request, res: Response): Promise<void>
           country:    result.country   as string | undefined,
           importedBy: importer?.name ?? importer?.email ?? 'unknown',
           createdAt:  new Date().toISOString(),
+        });
+        // Self-contained "notify the manager" — in-app notification feed.
+        notificationStore.add({
+          message:    `New ${String(result.platform ?? 'property')} listing imported: ` +
+                      `"${String(result.propertyTitle ?? 'Untitled')}" ` +
+                      `(${Number(result.imagesUploaded ?? result.imagesTotal ?? 0)} photos)`,
+          propertyId: String(result.guestyPropertyId),
+          guestyUrl:  result.guestyListingUrl as string | undefined,
         });
       }
       res.status(200).json(result);
