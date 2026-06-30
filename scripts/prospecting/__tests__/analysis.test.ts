@@ -71,4 +71,17 @@ describe('selectAnalyzer', () => {
       if (prev !== undefined) process.env.ANTHROPIC_API_KEY = prev;
     }
   });
+
+  test('selects the Claude analyzer when an API key is present', () => {
+    const prev = process.env.ANTHROPIC_API_KEY;
+    process.env.ANTHROPIC_API_KEY = 'sk-test-not-a-real-key';
+    try {
+      // Constructing the client does not hit the network; only a real analyze()
+      // call would. We only assert which implementation is chosen.
+      expect(selectAnalyzer().name).toBe('claude');
+    } finally {
+      if (prev !== undefined) process.env.ANTHROPIC_API_KEY = prev;
+      else delete process.env.ANTHROPIC_API_KEY;
+    }
+  });
 });
