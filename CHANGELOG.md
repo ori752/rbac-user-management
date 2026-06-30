@@ -4,7 +4,23 @@ All notable changes to this project are documented here.
 Format is based on [Keep a Changelog](https://keepachangelog.com/); the project
 uses semantic-style versioning.
 
-## [Unreleased] — Guesty portfolio-health source
+## [Unreleased] — legal data-source adapters (Guesty + Playwright demo)
+
+### Playwright scraping demo (`--source mock`)
+
+- A legal, end-to-end demonstration of the same skill stack the project targets
+  (browser automation → DOM extraction → LLM analysis → ranked report), with NO
+  third-party scraping, proxies, or anti-bot evasion:
+  - `fixtures/build-mock-site.ts` generates a realistic rental "marketplace"
+    (static HTML) from the sample data.
+  - `sources/mockScrape.ts` serves it locally over HTTP and drives **real
+    headless Chromium** to crawl the index and scrape each listing's title,
+    rating, reviews, and host **business** contact from the rendered DOM, then
+    feeds the existing analyzer → distress → report → notify pipeline.
+  - Repoint at any source you're permitted to scrape (a scraping sandbox or a
+    licensed feed) without changing the rest of the pipeline.
+
+### Guesty portfolio-health source
 
 - **Guesty listing source** (`--source guesty` / `LEADS_SOURCE=guesty`): pulls
   your own listings via the **official Guesty Open API** (OAuth, reusing the
