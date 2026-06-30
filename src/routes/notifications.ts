@@ -1,20 +1,14 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
-import { notificationStore } from '../data/notificationStore';
+import { listNotifications, markNotificationsRead } from '../controllers/notificationController';
 
 const router = Router();
 
 router.use(authenticate);
 
-// GET /notifications — manager notification feed (newest first).
-router.get('/', (_req, res) => {
-  res.json(notificationStore.list());
-});
-
-// POST /notifications/read — mark all as read.
-router.post('/read', (_req, res) => {
-  notificationStore.markAllRead();
-  res.status(204).end();
-});
+// GET /notifications — role-scoped feed { items, unread }
+router.get('/', listNotifications);
+// POST /notifications/read — mark all current items seen for this user
+router.post('/read', markNotificationsRead);
 
 export default router;

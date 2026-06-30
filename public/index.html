@@ -294,7 +294,7 @@
       <div class="topbar-title" id="topbar-title">Dashboard</div>
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input type="text" id="search-input" placeholder="Search users…" oninput="applyFilters()" />
+        <input type="text" id="search-input" placeholder="Search users…" oninput="debouncedFilter()" />
       </div>
       <div style="position:relative">
         <button class="btn btn-ghost" id="notif-btn" onclick="toggleNotifs()" style="padding:7px 11px;font-size:15px">🔔<span id="notif-badge" style="display:none;position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:0 5px;line-height:16px;min-width:16px;text-align:center"></span></button>
@@ -431,12 +431,32 @@
       <div class="field"><label>Last name</label> <input type="text" id="p-lname" /></div>
     </div>
     <div class="field"><label>Email address</label><input type="email" id="p-email-in" /></div>
-    <div class="field"><label>New password <span style="color:var(--muted);font-weight:400">(leave blank to keep current)</span></label><input type="password" id="p-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitProfile()" /></div>
+    <div class="field">
+      <label>New password <span style="color:var(--muted);font-weight:400">(leave blank to keep current)</span></label>
+      <input type="password" id="p-pass" placeholder="••••••••" oninput="onPwInput()" />
+      <div id="pw-strength" style="display:none;margin-top:8px">
+        <div style="height:4px;border-radius:99px;background:var(--surface3);overflow:hidden"><div id="pw-bar" style="height:100%;width:0;transition:width .2s,background .2s"></div></div>
+        <div id="pw-hint" style="font-size:11px;margin-top:5px;color:var(--text2)"></div>
+      </div>
+    </div>
+    <div class="field" id="p-confirm-field" style="display:none"><label>Confirm new password</label><input type="password" id="p-confirm" placeholder="••••••••" /></div>
+    <div class="field" id="p-current-field" style="display:none"><label>Current password <span style="color:var(--muted);font-weight:400">(required to change password)</span></label><input type="password" id="p-current" placeholder="••••••••" onkeydown="if(event.key==='Enter')submitProfile()" /></div>
     <div class="error-banner"   id="profile-err"></div>
     <div class="success-banner" id="profile-ok"></div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeProfile()">Cancel</button>
       <button class="btn btn-primary" style="flex:1;justify-content:center;padding:10px;font-size:13px;border-radius:9px" id="profile-submit" onclick="submitProfile()"><span id="profile-label">Save changes</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DIALOG -->
+<div class="overlay" id="confirm-overlay">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-head"><h3 id="confirm-title">Are you sure?</h3><p id="confirm-msg"></p></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="confirm-cancel">Cancel</button>
+      <button class="btn btn-primary" id="confirm-ok" style="flex:1;justify-content:center;padding:10px;font-size:13px;border-radius:9px">Confirm</button>
     </div>
   </div>
 </div>
@@ -495,12 +515,17 @@ function toast(msg, type = 'success') {
   el._t = setTimeout(() => el.className = '', 3200);
 }
 async function req(path, opts = {}) {
-  const r = await fetch(API + path, {
-    headers: { 'Content-Type':'application/json', ...(token ? {Authorization:`Bearer ${token}`} : {}) },
-    ...opts,
-  });
+  let r;
+  try {
+    r = await fetch(API + path, {
+      headers: { 'Content-Type':'application/json', ...(token ? {Authorization:`Bearer ${token}`} : {}) },
+      ...opts,
+    });
+  } catch {
+    return { error: 'Network error — check your connection and try again.' };
+  }
   if (r.status === 204) return null;
-  return r.json();
+  try { return await r.json(); } catch { return { error: `Unexpected server response (${r.status}).` }; }
 }
 function spin(btnId, labelId, on, text = '') {
   document.getElementById(btnId).disabled = on;
@@ -697,6 +722,9 @@ function setTab(el) {
   applyFilters();
 }
 
+let _filterTimer;
+function debouncedFilter() { clearTimeout(_filterTimer); _filterTimer = setTimeout(applyFilters, 180); }
+
 function applyFilters() {
   const q = document.getElementById('search-input').value.toLowerCase();
   let filtered = allUsers;
@@ -754,13 +782,45 @@ function renderTable(users) {
     </tr>`).join('');
 }
 
+/* ── themed confirm dialog (replaces native confirm) ── */
+function confirmDialog({ title = 'Are you sure?', message = '', confirmText = 'Confirm', danger = false } = {}) {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('confirm-overlay');
+    const okBtn   = document.getElementById('confirm-ok');
+    const noBtn   = document.getElementById('confirm-cancel');
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent   = message;
+    okBtn.textContent   = confirmText;
+    okBtn.className     = 'btn ' + (danger ? 'btn-danger' : 'btn-primary');
+    okBtn.style.cssText = 'flex:1;justify-content:center;padding:10px;font-size:13px;border-radius:9px';
+    const onKey = (e) => { if (e.key === 'Escape') done(false); };
+    function done(val) {
+      overlay.classList.remove('open');
+      okBtn.onclick = noBtn.onclick = overlay.onclick = null;
+      document.removeEventListener('keydown', onKey);
+      resolve(val);
+    }
+    okBtn.onclick   = () => done(true);
+    noBtn.onclick   = () => done(false);
+    overlay.onclick = (e) => { if (e.target === overlay) done(false); };
+    document.addEventListener('keydown', onKey);
+    overlay.classList.add('open');
+    setTimeout(() => okBtn.focus(), 100);
+  });
+}
+
 async function removeUser(id) {
   const u    = allUsers.find(x => x.id === id);
   const name = u ? u.name : 'this user';
-  if (!confirm(`Remove "${name}" permanently?`)) return;
+  const okConfirm = await confirmDialog({
+    title: 'Remove user',
+    message: `Remove "${name}" permanently? This cannot be undone.`,
+    confirmText: 'Remove', danger: true,
+  });
+  if (!okConfirm) return;
   const r = await req(`/users/${id}`,{method:'DELETE'});
   if (r && r.error) { toast(r.error,'error'); return; }
-  toast(`${escHtml(name)} removed`);
+  toast(`${name} removed`);
   loadUsers();
 }
 
@@ -867,6 +927,11 @@ function openProfileModal() {
   document.getElementById('p-lname').value    = last;
   document.getElementById('p-email-in').value = me.email;
   document.getElementById('p-pass').value     = '';
+  document.getElementById('p-confirm').value  = '';
+  document.getElementById('p-current').value  = '';
+  document.getElementById('pw-strength').style.display      = 'none';
+  document.getElementById('p-confirm-field').style.display  = 'none';
+  document.getElementById('p-current-field').style.display  = 'none';
   document.getElementById('profile-err').style.display = 'none';
   document.getElementById('profile-ok').style.display  = 'none';
   document.getElementById('profile-overlay').classList.add('open');
@@ -875,27 +940,68 @@ function openProfileModal() {
 function closeProfile() { document.getElementById('profile-overlay').classList.remove('open'); }
 
 async function submitProfile() {
-  const name  = (document.getElementById('p-fname').value.trim()+' '+document.getElementById('p-lname').value.trim()).trim();
-  const email = document.getElementById('p-email-in').value.trim();
-  const pass  = document.getElementById('p-pass').value;
-  const err   = document.getElementById('profile-err');
-  const ok    = document.getElementById('profile-ok');
+  const name    = (document.getElementById('p-fname').value.trim()+' '+document.getElementById('p-lname').value.trim()).trim();
+  const email   = document.getElementById('p-email-in').value.trim();
+  const pass    = document.getElementById('p-pass').value;
+  const confirm = document.getElementById('p-confirm').value;
+  const current = document.getElementById('p-current').value;
+  const err     = document.getElementById('profile-err');
+  const ok      = document.getElementById('profile-ok');
   err.style.display='none'; ok.style.display='none';
+  const fail = (m) => { err.textContent = m; err.style.display = 'block'; };
+
+  // Client-side validation mirrors the backend (min 8); backend stays authoritative.
+  if (pass) {
+    if (pass.length < 8)    return fail('New password must be at least 8 characters.');
+    if (pass !== confirm)   return fail('New password and confirmation do not match.');
+    if (!current)           return fail('Enter your current password to change it.');
+  }
 
   const body = {name, email};
-  if (pass) body.password = pass;
+  if (pass) { body.password = pass; body.currentPassword = current; }
 
   spin('profile-submit','profile-label',true);
   const data = await req(`/users/${me.id}`,{method:'PUT',body:JSON.stringify(body)});
   spin('profile-submit','profile-label',false,'Save changes');
 
-  if (data && data.error) { err.textContent=data.error; err.style.display='block'; return; }
+  if (data && data.error) { fail(data.error); toast(data.error,'error'); return; }
+
+  // A password change bumps tokenVersion → current token is now invalid; re-login.
+  if (pass) { closeProfile(); toast('Password changed — please sign in again'); logout(); return; }
+
   me = {...me, name:data.name, email:data.email};
   populateProfileBar();
   document.getElementById('su-name').textContent = me.name;
   ok.textContent = 'Profile updated successfully.'; ok.style.display = 'block';
   toast('Profile updated');
   if (me.role==='admin'||me.role==='manager') loadUsers();
+}
+
+/* ── password strength ── */
+function pwStrength(pw) {
+  let s = 0;
+  if (pw.length >= 8)  s++;
+  if (pw.length >= 12) s++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s++;
+  if (/\d/.test(pw)) s++;
+  if (/[^A-Za-z0-9]/.test(pw)) s++;
+  return Math.min(s, 4);
+}
+function onPwInput() {
+  const pw   = document.getElementById('p-pass').value;
+  const show = pw.length > 0;
+  document.getElementById('pw-strength').style.display     = show ? 'block' : 'none';
+  document.getElementById('p-confirm-field').style.display = show ? 'block' : 'none';
+  document.getElementById('p-current-field').style.display = show ? 'block' : 'none';
+  if (!show) return;
+  const lvl    = pwStrength(pw);
+  const colors = ['var(--red)','var(--amber)','var(--amber)','var(--blue)','var(--green)'];
+  const labels = ['Weak','Weak','Fair','Good','Strong'];
+  const tooShort = pw.length < 8;
+  const bar = document.getElementById('pw-bar');
+  bar.style.width      = tooShort ? '15%' : [20,40,60,80,100][lvl] + '%';
+  bar.style.background = tooShort ? 'var(--red)' : colors[lvl];
+  document.getElementById('pw-hint').textContent = tooShort ? 'Too short — minimum 8 characters' : labels[lvl];
 }
 
 /* ── import property ── */
@@ -1014,16 +1120,16 @@ function renderPropCard(p) {
 /* ── notifications (in-app manager feed) ── */
 let notifsOpen = false;
 async function loadNotifs() {
-  const list = await req('/notifications');
-  if (!Array.isArray(list)) return;
-  const unread = list.filter(n => !n.read).length;
-  const badge  = document.getElementById('notif-badge');
-  if (unread > 0) { badge.textContent = unread; badge.style.display = 'block'; } else { badge.style.display = 'none'; }
-  document.getElementById('notif-panel').innerHTML = list.length
-    ? list.slice(0, 20).map(n => `
-      <div style="padding:10px 12px;border-radius:8px;${n.read ? '' : 'background:rgba(99,102,241,.08)'}">
+  const data = await req('/notifications');
+  if (!data || data.error || !Array.isArray(data.items)) return;
+  const badge = document.getElementById('notif-badge');
+  if (data.unread > 0) { badge.textContent = data.unread; badge.style.display = 'block'; } else { badge.style.display = 'none'; }
+  const items = data.items;
+  document.getElementById('notif-panel').innerHTML = items.length
+    ? items.slice(0, 20).map(n => `
+      <div style="padding:10px 12px;border-radius:8px">
         <div style="font-size:13px;line-height:1.45">${escHtml(n.message)}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">${new Date(n.createdAt).toLocaleString()}${n.guestyUrl ? ` · <a href="${escHtml(n.guestyUrl)}" target="_blank" rel="noopener" style="color:var(--indigo-l)">Open ↗</a>` : ''}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${escHtml(new Date(n.createdAt).toLocaleString())}${n.guestyUrl ? ` · <a href="${escHtml(n.guestyUrl)}" target="_blank" rel="noopener" style="color:var(--indigo-l)">Open ↗</a>` : ''}</div>
       </div>`).join('')
     : '<div style="padding:18px;text-align:center;color:var(--text2);font-size:13px">No notifications yet</div>';
 }
