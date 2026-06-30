@@ -1,0 +1,144 @@
+[
+  {
+    "id": "fx-001",
+    "platform": "airbnb",
+    "title": "Sunset Beach Condo",
+    "url": "https://example.com/listings/sunset-beach-condo",
+    "city": "Pensacola",
+    "country": "USA",
+    "rating": 4.1,
+    "reviewsCount": 212,
+    "isSuperhost": false,
+    "host": {
+      "hostName": "Gulf Coast Stays",
+      "managementCompany": "Gulf Coast STR Management LLC",
+      "businessWebsite": "https://example.com/gulfcoast-str",
+      "businessEmail": "leads@example.com",
+      "businessPhone": "+1-850-555-0142",
+      "companyLinkedIn": "https://www.linkedin.com/company/example-gulfcoast-str"
+    },
+    "reviews": [
+      { "text": "Place was not clean on arrival — crumbs in the kitchen and hair in the bathroom. Disappointing for the price.", "rating": 2, "date": "2026-06-02" },
+      { "text": "Host was very slow to respond about the broken AC. Took two days to even acknowledge it.", "rating": 2, "date": "2026-05-28" },
+      { "text": "They cancelled my reservation a week before the trip with no real explanation. Scrambled to rebook.", "rating": 1, "date": "2026-05-19" },
+      { "text": "Used to be a Superhost a couple years ago but the standards have really slipped lately.", "rating": 3, "date": "2026-05-10" },
+      { "text": "Great location and lovely view, but cleanliness has gone downhill compared to my last stay.", "rating": 3, "date": "2026-04-30" }
+    ]
+  },
+  {
+    "id": "fx-002",
+    "platform": "booking",
+    "title": "Downtown Loft 4B",
+    "url": "https://example.com/listings/downtown-loft-4b",
+    "city": "Austin",
+    "country": "USA",
+    "rating": 3.6,
+    "reviewsCount": 88,
+    "isSuperhost": false,
+    "host": {
+      "hostName": "Marcus Reed Rentals",
+      "businessWebsite": "https://example.com/marcus-reed-rentals",
+      "businessEmail": "bookings@example.com"
+    },
+    "reviews": [
+      { "text": "Check-in was a nightmare — the lockbox code didn't work and I couldn't reach anyone for an hour.", "rating": 2, "date": "2026-06-05" },
+      { "text": "Communication is poor. Messages went unanswered until after I'd already figured it out myself.", "rating": 2, "date": "2026-05-31" },
+      { "text": "Nice loft but you're on your own once you book. No instructions, no responses.", "rating": 3, "date": "2026-05-20" },
+      { "text": "Self check-in instructions arrived late at night, after I'd been waiting outside.", "rating": 2, "date": "2026-05-12" }
+    ]
+  },
+  {
+    "id": "fx-003",
+    "platform": "airbnb",
+    "title": "Mountain Cabin Retreat",
+    "url": "https://example.com/listings/mountain-cabin-retreat",
+    "city": "Asheville",
+    "country": "USA",
+    "rating": 3.9,
+    "reviewsCount": 134,
+    "isSuperhost": false,
+    "host": {
+      "hostName": "Blue Ridge Cabins",
+      "managementCompany": "Blue Ridge Cabins LLC",
+      "businessWebsite": "https://example.com/blueridge-cabins",
+      "businessEmail": "info@example.com",
+      "businessPhone": "+1-828-555-0190"
+    },
+    "reviews": [
+      { "text": "The heating was broken the entire stay and the hot tub was out of order. Cold mountain nights with no fix.", "rating": 2, "date": "2026-06-01" },
+      { "text": "Maintenance issues everywhere — leaky faucet, a door that wouldn't lock, and a broken stove burner.", "rating": 2, "date": "2026-05-24" },
+      { "text": "Beautiful spot, but clearly nobody has kept up with repairs in a while.", "rating": 3, "date": "2026-05-15" },
+      { "text": "Reported the broken heater and never heard back. Had to buy a space heater myself.", "rating": 2, "date": "2026-05-03" }
+    ]
+  },
+  {
+    "id": "fx-004",
+    "platform": "airbnb",
+    "title": "Cozy Studio Midtown",
+    "url": "https://example.com/listings/cozy-studio-midtown",
+    "city": "New York",
+    "country": "USA",
+    "rating": 4.7,
+    "reviewsCount": 301,
+    "isSuperhost": true,
+    "host": {
+      "hostName": "Jane Holloway Hospitality",
+      "businessEmail": "stay@example.com"
+    },
+    "reviews": [
+      { "text": "Spotless, exactly as described, and the host responded within minutes. Highly recommend.", "rating": 5, "date": "2026-06-04" },
+      { "text": "Great value for Midtown. A little street noise at night but that's NYC for you.", "rating": 4, "date": "2026-05-26" },
+      { "text": "Smooth self check-in and a genuinely clean space. Would book again.", "rating": 5, "date": "2026-05-18" }
+    ]
+  },
+  {
+    "id": "fx-005",
+    "platform": "booking",
+    "title": "Lakeside Villa",
+    "url": "https://example.com/listings/lakeside-villa",
+    "city": "Orlando",
+    "country": "USA",
+    "rating": 3.4,
+    "reviewsCount": 76,
+    "isSuperhost": false,
+    "host": {
+      "hostName": "Sunshine Vacation Homes",
+      "managementCompany": "Sunshine Vacation Homes Inc",
+      "businessWebsite": "https://example.com/sunshine-vacation-homes",
+      "businessEmail": "reservations@example.com",
+      "businessPhone": "+1-407-555-0177"
+    },
+    "reviews": [
+      { "text": "Not as pictured — the photos make it look luxurious but it's tired and dated in person.", "rating": 2, "date": "2026-06-03" },
+      { "text": "Overpriced for what you get. Felt like a rip-off once we saw the actual condition.", "rating": 2, "date": "2026-05-27" },
+      { "text": "The listing description oversells it. Several amenities listed simply weren't there.", "rating": 2, "date": "2026-05-16" },
+      { "text": "Decent pool, but the value just isn't there at this nightly rate.", "rating": 3, "date": "2026-05-08" }
+    ]
+  },
+  {
+    "id": "fx-006",
+    "platform": "airbnb",
+    "title": "Harbor View Apartment",
+    "url": "https://example.com/listings/harbor-view-apartment",
+    "city": "San Diego",
+    "country": "USA",
+    "rating": 3.2,
+    "reviewsCount": 159,
+    "isSuperhost": false,
+    "host": {
+      "hostName": "Pacific Coast Rentals",
+      "managementCompany": "Pacific Coast Rentals Co",
+      "businessWebsite": "https://example.com/pacific-coast-rentals",
+      "businessEmail": "hello@example.com",
+      "businessPhone": "+1-619-555-0123",
+      "companyLinkedIn": "https://www.linkedin.com/company/example-pacific-coast-rentals"
+    },
+    "reviews": [
+      { "text": "Filthy on arrival — dishes in the sink and the floors clearly hadn't been mopped. One star.", "rating": 1, "date": "2026-06-06" },
+      { "text": "Broken shower, mold in the bathroom, and the fridge wasn't cooling. Avoid until they fix things.", "rating": 1, "date": "2026-06-01" },
+      { "text": "This place lost its Superhost status for a reason. Cleanliness and upkeep have collapsed.", "rating": 2, "date": "2026-05-25" },
+      { "text": "Host barely communicates and the unit needs serious maintenance. Felt neglected.", "rating": 1, "date": "2026-05-17" },
+      { "text": "Good harbor views can't make up for how dirty and run-down the apartment was.", "rating": 2, "date": "2026-05-09" }
+    ]
+  }
+]

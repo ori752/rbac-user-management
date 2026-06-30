@@ -6,6 +6,7 @@ import userRoutes         from './routes/users';
 import importRoutes       from './routes/import';
 import propertyRoutes     from './routes/properties';
 import notificationRoutes from './routes/notifications';
+import leadsRoutes        from './routes/leads';
 import { securityHeaders, cors } from './middleware/security';
 import { errorHandler } from './middleware/errorHandler';
 
@@ -36,6 +37,7 @@ app.use('/users',         userRoutes);
 app.use('/import',        importRoutes);
 app.use('/properties',    propertyRoutes);
 app.use('/notifications', notificationRoutes);
+app.use('/leads',         leadsRoutes);
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((_req, res) => {
