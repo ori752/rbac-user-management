@@ -4,6 +4,20 @@ All notable changes to this project are documented here.
 Format is based on [Keep a Changelog](https://keepachangelog.com/); the project
 uses semantic-style versioning.
 
+## [Unreleased] — Guesty portfolio-health source
+
+- **Guesty listing source** (`--source guesty` / `LEADS_SOURCE=guesty`): pulls
+  your own listings via the **official Guesty Open API** (OAuth, reusing the
+  existing `GuestyClient` — authorized account data, no scraping/proxies/OSINT).
+- **Portfolio-health scoring** (`health.ts`): because Guesty holds the properties
+  you *manage*, the engine scores **operational facts from your own account** —
+  unpublished (`isListed:false`), inactive (`active:false`), and stale "dirty"
+  housekeeping — to flag managed listings that need attention. `DistressScore.basis`
+  gains `'operational_pms_data'` to distinguish this from the public-review
+  inference path; the report carries a `PORTFOLIO_DISCLAIMER`.
+- `LEADS_SOURCE` env selects the default source for the CLI and the web "Run
+  pipeline" button. +7 tests (143 total).
+
 ## [1.4.0] — Host Lead Intelligence (B2B host-prospecting module)
 
 A pluggable pipeline that surfaces **struggling short-term-rental hosts**

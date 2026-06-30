@@ -6,6 +6,7 @@
  * returned `basis` literal and in every signal label.
  */
 import type { DistressScore, ReviewDiagnosis, SourceListing } from './types';
+import { healthDistress } from './health';
 
 /** Recent-vs-older review-rating trend (a public, derivable signal). */
 function recentVsOlderTrend(listing: SourceListing): 'declining' | 'stable' | 'improving' | 'unknown' {
@@ -50,9 +51,20 @@ export function computeDistress(listing: SourceListing, diagnosis: ReviewDiagnos
   score += diagnosis.severity * 4; // up to +20
   signals.push(`diagnosed ${diagnosis.category} problem (severity ${diagnosis.severity}/5)`);
 
+  // Operational health (PMS-sourced, e.g. Guesty) — facts from your own account.
+  // When present, the score is grounded in operational data rather than a public
+  // inference, which the basis literal records.
+  let basis: DistressScore['basis'] = 'inference_from_public_data';
+  if (listing.health) {
+    const hc = healthDistress(listing.health);
+    score += hc.score;
+    signals.push(...hc.signals);
+    basis = 'operational_pms_data';
+  }
+
   return {
     score: Math.max(0, Math.min(100, Math.round(score))),
     signals,
-    basis: 'inference_from_public_data',
+    basis,
   };
 }

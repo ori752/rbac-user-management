@@ -20,6 +20,8 @@ dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 import { selectSource } from './sources';
 import { selectAnalyzer } from './analyzer';
 import { computeDistress } from './distress';
+import { diagnoseFromHealth } from './health';
+import { PORTFOLIO_DISCLAIMER } from './types';
 import { buildLeadsReport, formatReportText, type AnalyzedListing } from './report';
 import { notifyReport } from '../notifier/report';
 import { createLogger, resolveLogLevel } from '../utils/logger';
@@ -40,7 +42,9 @@ function parseArgs(): CliArgs {
   };
   const limitRaw = get('--limit');
   return {
-    source: get('--source') ?? 'fixture',
+    // --source flag → LEADS_SOURCE env → fixture. The env lets the web "Run
+    // pipeline" button (which spawns this CLI) target a configured source.
+    source: get('--source') ?? process.env['LEADS_SOURCE'] ?? 'fixture',
     limit:  limitRaw !== undefined ? Number(limitRaw) : undefined,
     json:   args.includes('--json'),
   };
@@ -56,11 +60,18 @@ async function run(): Promise<void> {
   const analyzer = selectAnalyzer();
   const analyzed: AnalyzedListing[] = [];
   for (const listing of listings) {
-    const diagnosis = await analyzer.analyze(listing);
+    // Listings with no public reviews but operational health (the Guesty /
+    // portfolio case) are diagnosed from that health; otherwise from reviews.
+    const diagnosis = listing.reviews.length === 0 && listing.health
+      ? diagnoseFromHealth(listing)
+      : await analyzer.analyze(listing);
     analyzed.push({ listing, diagnosis, distress: computeDistress(listing, diagnosis) });
   }
 
-  const report = buildLeadsReport(analyzed, { source: source.name });
+  const report = buildLeadsReport(analyzed, {
+    source:     source.name,
+    disclaimer: source.name === 'guesty' ? PORTFOLIO_DISCLAIMER : undefined,
+  });
 
   // Persist for the web layer (Phase D renders GET /leads from this file).
   fs.mkdirSync(REPORT_DIR, { recursive: true });

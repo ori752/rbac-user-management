@@ -27,7 +27,7 @@ function resolveMinDistress(explicit?: number): number {
 
 export function buildLeadsReport(
   analyzed: AnalyzedListing[],
-  opts: { source: string; minDistress?: number; max?: number },
+  opts: { source: string; minDistress?: number; max?: number; disclaimer?: string },
 ): LeadsReport {
   const minDistress = resolveMinDistress(opts.minDistress);
   const max = opts.max ?? DEFAULT_MAX_LEADS;
@@ -53,7 +53,7 @@ export function buildLeadsReport(
     evaluated:   analyzed.length,
     minDistress,
     leads,
-    disclaimer:  LEADS_DISCLAIMER,
+    disclaimer:  opts.disclaimer ?? LEADS_DISCLAIMER,
   };
 }
 

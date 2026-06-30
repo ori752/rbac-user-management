@@ -49,6 +49,25 @@ export interface PublicReview {
   date?: string;
 }
 
+// ─── Operational health (PMS-sourced, e.g. Guesty) ────────────────────────────
+
+/**
+ * Operational health of a MANAGED listing, as reported by a PMS you control
+ * (e.g. Guesty). Unlike review signals, these are FACTS from your own account
+ * data — not inferences from public data — so they power a "portfolio /
+ * retention health" view of listings you already manage.
+ */
+export interface ListingHealth {
+  /** Listing is active in the PMS. */
+  active?: boolean;
+  /** Listing is currently published / bookable on channels. */
+  isListed?: boolean;
+  /** Housekeeping status, e.g. 'clean' | 'dirty'. */
+  cleaningStatus?: string;
+  /** Days since the housekeeping status was last updated (staleness). */
+  cleaningStaleDays?: number;
+}
+
 // ─── Listing (as returned by a ListingSource) ─────────────────────────────────
 
 export interface SourceListing {
@@ -70,6 +89,8 @@ export interface SourceListing {
   reviews: PublicReview[];
   /** Host/owner business contact — the only lead entity. */
   host: HostBusinessContact;
+  /** Operational health, when the source is a PMS you control (e.g. Guesty). */
+  health?: ListingHealth;
 }
 
 // ─── Listing source (pluggable) ───────────────────────────────────────────────
@@ -127,7 +148,12 @@ export interface DistressScore {
   score: number;
   /** The public signals behind the score (always populated). */
   signals: string[];
-  basis: 'inference_from_public_data';
+  /**
+   * What the score is derived from:
+   *   'inference_from_public_data' — public review/rating signals (prospecting)
+   *   'operational_pms_data'       — facts from your own PMS account (portfolio)
+   */
+  basis: 'inference_from_public_data' | 'operational_pms_data';
 }
 
 /** A qualified B2B lead. The lead entity is ALWAYS the host/owner. */
@@ -162,3 +188,9 @@ export const LEADS_DISCLAIMER =
   'prospecting. They do not reflect Airbnb/Booking-internal delisting status. ' +
   'The lead is the host/owner (a commercial operator); guests who wrote reviews ' +
   'are never profiled or identified.';
+
+/** Framing for the Guesty portfolio-health view (own-account operational data). */
+export const PORTFOLIO_DISCLAIMER =
+  'Scores reflect operational health signals from your OWN Guesty account ' +
+  '(publish status, active status, housekeeping) — not public reviews. They flag ' +
+  'managed listings that may need attention; they are not a delisting prediction.';

@@ -237,6 +237,37 @@ export class GuestyClient {
     return { succeeded, failed };
   }
 
+  // ── Listing read (for the prospecting / portfolio-health engine) ─────────────
+
+  /**
+   * Fetches listings from the connected Guesty account (read-only). Returns the
+   * raw `results` array; the prospecting adapter maps these into its own
+   * SourceListing shape. This is authorized access to YOUR OWN account data —
+   * no scraping, no third-party platforms.
+   */
+  async listListings(limit = 25): Promise<Record<string, unknown>[]> {
+    await this.authenticate();
+
+    const response = await withRetry(
+      () => this.http.get<{ results?: Record<string, unknown>[] }>('/v1/listings', {
+        params:  { limit },
+        headers: { Authorization: `Bearer ${this.accessToken!}` },
+      }),
+      {
+        maxAttempts: 3,
+        baseDelayMs: 1_500,
+        factor:      2,
+        shouldRetry: (err) =>
+          isTransient((err as { response?: { status: number } }).response?.status ?? 0),
+        onRetry: (attempt, err, delay) =>
+          log.warn('Retrying listing fetch', { attempt, error: err.message, delayMs: delay }),
+      },
+    );
+
+    this.assertSuccess(response.status, response.data, 'listListings');
+    return response.data.results ?? [];
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   private requireEnv(name: string): string {
