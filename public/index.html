@@ -238,6 +238,11 @@
     @keyframes spin    { to{transform:rotate(360deg)} }
 
     .hidden { display:none !important; }
+
+    /* ── skeleton loading ── */
+    .skeleton { color:transparent !important; background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 37%,var(--surface2) 63%); background-size:400% 100%; animation:shimmer 1.4s ease infinite; border-radius:6px; }
+    .skeleton * { visibility:hidden; }
+    @keyframes shimmer { 0%{background-position:100% 0} 100%{background-position:0 0} }
   </style>
 </head>
 <body>
@@ -327,6 +332,9 @@
         <h3>Access Restricted</h3>
         <p id="denied-msg"></p>
       </div>
+
+      <!-- Your Access panel (roles without the full directory) -->
+      <div id="access-panel" style="display:none"></div>
 
       <!-- Users table -->
       <div id="users-section">
@@ -569,15 +577,16 @@ async function enterApp() {
   const canSeeAll = can('users:read_all');
   // Directory-wide stats are meaningful only to roles that can read all users
   document.querySelector('.stats-grid').style.display = canSeeAll ? '' : 'none';
+  document.getElementById('access-denied').style.display = 'none';
   if (canSeeAll) {
-    document.getElementById('access-denied').style.display = 'none';
+    document.getElementById('access-panel').style.display = 'none';
     document.getElementById('users-section').style.display = 'block';
+    setUsersLoading(true);
     await loadUsers();
   } else {
     document.getElementById('users-section').style.display = 'none';
-    document.getElementById('access-denied').style.display = 'block';
-    document.getElementById('denied-msg').textContent =
-      `You're signed in as "${me.role}". Your role can view and manage only your own profile.`;
+    document.getElementById('access-panel').style.display = 'block';
+    renderAccessPanel();
   }
 
   loadProperties();
@@ -611,8 +620,17 @@ function fallbackCopy(text) {
 }
 
 async function loadUsers() {
-  const users = await req('/users');
-  if (!users || users.error) return;
+  let users;
+  try { users = await req('/users'); } catch { users = null; }
+  setUsersLoading(false);
+  if (!users || users.error) {
+    const msg = (users && users.error) || 'Could not load users. Please try again.';
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--red);font-size:14px">${escHtml(msg)}</td></tr>`;
+    ['cnt-admin','cnt-manager','cnt-user','cnt-guest'].forEach(id => document.getElementById(id).textContent = '—');
+    toast(msg, 'error');
+    return;
+  }
   allUsers = users;
   updateStats(users);
   document.getElementById('nav-total').textContent = users.length;
@@ -623,6 +641,52 @@ function updateStats(users) {
   ['admin','manager','user','guest'].forEach(r =>
     animCount(`cnt-${r}`, users.filter(u => u.role === r).length)
   );
+}
+
+// Skeleton placeholders for the stat cards + table while /users is in flight.
+function setUsersLoading(on) {
+  ['cnt-admin','cnt-manager','cnt-user','cnt-guest'].forEach(id => {
+    const el = document.getElementById(id);
+    if (on) { el.classList.add('skeleton'); el.textContent = '00'; } else { el.classList.remove('skeleton'); }
+  });
+  if (on) {
+    document.getElementById('tbody').innerHTML = Array.from({ length: 5 }).map(() => `
+      <tr>
+        <td><div class="td-user"><div class="skeleton" style="width:34px;height:34px;border-radius:10px"></div>
+          <div><div class="skeleton" style="width:130px;height:13px;margin-bottom:6px"></div><div class="skeleton" style="width:170px;height:11px"></div></div></div></td>
+        <td><div class="skeleton" style="width:64px;height:18px;border-radius:5px"></div></td>
+        <td><div class="skeleton" style="width:84px;height:13px"></div></td>
+        <td></td>
+      </tr>`).join('');
+  }
+}
+
+// Plain-language permission labels for the "Your Access" panel.
+const PERM_LABELS = {
+  'users:read_all':   'View all users in the directory',
+  'users:read_own':   'View your own profile',
+  'users:create':     'Create new users',
+  'users:update_any': "Edit any user's profile",
+  'users:update_own': 'Edit your own profile',
+  'users:delete':     'Delete users',
+  'roles:assign':     'Assign roles to users',
+};
+// Meaningful dashboard for roles that can't read the directory (user/guest).
+function renderAccessPanel() {
+  const items = (me.permissions || []).map(p =>
+    `<li style="display:flex;align-items:center;gap:9px;padding:6px 0;font-size:13px"><span style="color:var(--green);font-weight:700">✓</span>${escHtml(PERM_LABELS[p] || p)}</li>`
+  ).join('');
+  document.getElementById('access-panel').innerHTML = `
+    <div class="section-label">Your Access</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 24px;max-width:560px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <span class="badge ${escHtml(me.role)}">${escHtml(me.role)}</span>
+        <span style="font-size:13px;color:var(--text2)">Member since ${escHtml(new Date(me.createdAt).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}))}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px">What you can do</div>
+      <ul style="list-style:none;margin:0;padding:0">${items}</ul>
+      <p style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.6">Your role doesn't include the full user directory. Need broader access? Contact an administrator.</p>
+    </div>`;
 }
 
 /* ── filter/search ── */
@@ -662,9 +726,16 @@ function rowActions(u) {
 }
 
 function renderTable(users) {
-  document.getElementById('tbody').innerHTML = !users.length
-    ? `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted);font-size:14px">No users found</td></tr>`
-    : users.map(u => `
+  if (!users.length) {
+    const q = document.getElementById('search-input').value.trim();
+    const msg = allUsers.length === 0 ? 'No users yet.'
+      : (q || activeRole !== 'all') ? 'No users match your search or filter.'
+      : 'No users found.';
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--muted);font-size:14px">${escHtml(msg)}</td></tr>`;
+    return;
+  }
+  document.getElementById('tbody').innerHTML = users.map(u => `
     <tr>
       <td>
         <div class="td-user">
