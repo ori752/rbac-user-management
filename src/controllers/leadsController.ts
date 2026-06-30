@@ -73,7 +73,13 @@ function spawnLeadsRun(): Promise<unknown> {
     child.on('close', (code) => {
       clearTimeout(timer);
       if (code !== 0) {
-        reject(new Error(`Leads run exited with code ${code}. ${stderr.trim().slice(-400)}`));
+        // Translate the raw child stderr into a clean, user-facing message.
+        const isRateLimited = /\b429\b|rate.?limit/i.test(stderr);
+        reject(new Error(
+          isRateLimited
+            ? 'The data source is rate-limiting requests right now. Please wait a minute and try again.'
+            : 'The leads pipeline did not complete. See the server logs for details.',
+        ));
         return;
       }
       try {
